@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light Theme Colors -->
+    <color name="primary_light">#FF6B9D</color>
+    <color name="primary_variant_light">#FF4A7C</color>
+    <color name="secondary_light">#9C27B0</color>
+    <color name="secondary_variant_light">#7B1FA2</color>
+    <color name="background_light">#FFFFFF</color>
+    <color name="surface_light">#F8F9FA</color>
+    <color name="error_light">#B00020</color>
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="on_secondary_light">#FFFFFF</color>
+    <color name="on_background_light">#1C1B1F</color>
+    <color name="on_surface_light">#1C1B1F</color>
+    <color name="on_error_light">#FFFFFF</color>
+    
+    <!-- Dark Theme Colors -->
+    <color name="primary_dark">#FF8AAC</color>
+    <color name="primary_variant_dark">#FF6B9D</color>
+    <color name="secondary_dark">#BB86FC</color>
+    <color name="secondary_variant_dark">#9C27B0</color>
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="error_dark">#CF6679</color>
+    <color name="on_primary_dark">#000000</color>
+    <color name="on_secondary_dark">#000000</color>
+    <color name="on_background_dark">#FFFFFF</color>
+    <color name="on_surface_dark">#FFFFFF</color>
+    <color name="on_error_dark">#000000</color>
+    
+    <!-- Common Colors -->
+    <color name="transparent">#00000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_light">#E0E0E0</color>
+    <color name="gray_medium">#9E9E9E</color>
+    <color name="gray_dark">#424242</color>
+    
+    <!-- Message Colors -->
+    <color name="message_sent_light">#E3F2FD</color>
+    <color name="message_received_light">#F3E5F5</color>
+    <color name="message_sent_dark">#1A237E</color>
+    <color name="message_received_dark">#4A148C</color>
+</resources>

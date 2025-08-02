@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background_dark">#121212</color>
+    <color name="background_light">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="error_dark">#CF6679</color>
+    <color name="error_light">#B00020</color>
+    <color name="gray_dark">#424242</color>
+    <color name="gray_light">#E0E0E0</color>
+    <color name="gray_medium">#9E9E9E</color>
+    <color name="message_received_dark">#4A148C</color>
+    <color name="message_received_light">#F3E5F5</color>
+    <color name="message_sent_dark">#1A237E</color>
+    <color name="message_sent_light">#E3F2FD</color>
+    <color name="on_background_dark">#FFFFFF</color>
+    <color name="on_background_light">#1C1B1F</color>
+    <color name="on_error_dark">#000000</color>
+    <color name="on_error_light">#FFFFFF</color>
+    <color name="on_primary_dark">#000000</color>
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="on_secondary_dark">#000000</color>
+    <color name="on_secondary_light">#FFFFFF</color>
+    <color name="on_surface_dark">#FFFFFF</color>
+    <color name="on_surface_light">#1C1B1F</color>
+    <color name="primary_dark">#FF8AAC</color>
+    <color name="primary_light">#FF6B9D</color>
+    <color name="primary_variant_dark">#FF6B9D</color>
+    <color name="primary_variant_light">#FF4A7C</color>
+    <color name="secondary_dark">#BB86FC</color>
+    <color name="secondary_light">#9C27B0</color>
+    <color name="secondary_variant_dark">#9C27B0</color>
+    <color name="secondary_variant_light">#7B1FA2</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="surface_light">#F8F9FA</color>
+    <color name="transparent">#00000000</color>
+    <color name="white">#FFFFFF</color>
+    <string name="accept">Kabul Et</string>
+    <string name="add_friend">Arkadaş Ekle</string>
+    <string name="app_name">SnickersChat</string>
+    <string name="cancel">İptal</string>
+    <string name="chats">Sohbetler</string>
+    <string name="copy_message">Mesajı Kopyala</string>
+    <string name="dark_mode">Karanlık Mod</string>
+    <string name="decline">Reddet</string>
+    <string name="delete_message">Mesajı Sil</string>
+    <string name="enter_username">Kullanıcı adınızı girin</string>
+    <string name="error">Hata</string>
+    <string name="firebase_database_url" translatable="false">https://flutterandroid-65ccb-default-rtdb.europe-west1.firebasedatabase.app</string>
+    <string name="friend_request">Arkadaşlık İsteği</string>
+    <string name="friends">Arkadaşlar</string>
+    <string name="gcm_defaultSenderId" translatable="false">742165492881</string>
+    <string name="google_api_key" translatable="false">AIzaSyDNPnxONDuFDkQ_tCjESlsiz8eSMihfV9s</string>
+    <string name="google_app_id" translatable="false">1:742165492881:android:fc9ecc2881588214d2fb30</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDNPnxONDuFDkQ_tCjESlsiz8eSMihfV9s</string>
+    <string name="google_storage_bucket" translatable="false">flutterandroid-65ccb.firebasestorage.app</string>
+    <string name="last_seen">Son görülme</string>
+    <string name="light_mode">Aydınlık Mod</string>
+    <string name="loading">Yükleniyor...</string>
+    <string name="login">Giriş Yap</string>
+    <string name="logout">Çıkış Yap</string>
+    <string name="message_delivered">İletildi</string>
+    <string name="message_read">Okundu</string>
+    <string name="message_sent">Gönderildi</string>
+    <string name="no_chats">Henüz sohbet yok</string>
+    <string name="no_friends">Henüz arkadaşınız yok</string>
+    <string name="no_messages">Henüz mesaj yok</string>
+    <string name="offline">Çevrimdışı</string>
+    <string name="ok">Tamam</string>
+    <string name="online">Çevrimiçi</string>
+    <string name="project_id" translatable="false">flutterandroid-65ccb</string>
+    <string name="remove_friend">Arkadaşı Kaldır</string>
+    <string name="scroll_to_bottom">En alta git</string>
+    <string name="search">Ara</string>
+    <string name="send">Gönder</string>
+    <string name="settings">Ayarlar</string>
+    <string name="success">Başarılı</string>
+    <string name="type_message">Mesajınızı yazın...</string>
+    <string name="username">Kullanıcı Adı</string>
+    <style name="Theme.SnickersChatv4" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
