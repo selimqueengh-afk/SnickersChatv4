@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import com.snickerschat.app.data.model.Message
 
 class ChatViewModel(
@@ -131,6 +132,12 @@ class ChatViewModel(
             while (_chatState.value.otherUser == null) {
                 println("ChatViewModel: DEBUG - Waiting for otherUser to be loaded...")
                 delay(100)
+            }
+            
+            val otherUserId = _chatState.value.otherUserId
+            if (otherUserId == null) {
+                println("ChatViewModel: ERROR - otherUserId is null!")
+                return@launch
             }
             
             println("ChatViewModel: DEBUG - Starting online status listener for user: $otherUserId")
