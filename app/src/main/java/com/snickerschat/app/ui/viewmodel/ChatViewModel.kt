@@ -156,6 +156,23 @@ class ChatViewModel(
                 )
             }
         }
+        
+        // Start real-time listener for message read status
+        viewModelScope.launch {
+            repository.getMessageReadStatusFlow(chatRoomId).collect { readMessages ->
+                println("ChatViewModel: Real-time message read status update: $readMessages")
+                
+                // Update messages with read status
+                val updatedMessages = _chatState.value.messages.map { messageWithUser ->
+                    val isRead = readMessages[messageWithUser.message.id] ?: messageWithUser.message.isRead
+                    messageWithUser.copy(
+                        message = messageWithUser.message.copy(isRead = isRead)
+                    )
+                }
+                
+                _chatState.value = _chatState.value.copy(messages = updatedMessages)
+            }
+        }
     }
     
     fun sendMessage(receiverId: String, content: String) {

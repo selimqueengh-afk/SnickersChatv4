@@ -140,27 +140,21 @@ fun ChatScreen(
                             text = if (user.isOnline) {
                                 "🟢 Çevrimiçi"
                             } else {
-                                "🔴 Çevrimdışı"
+                                user.lastSeen?.let { lastSeen ->
+                                    val now = com.google.firebase.Timestamp.now()
+                                    val diffInSeconds = now.seconds - lastSeen.seconds
+                                    val timeText = when {
+                                        diffInSeconds < 60 -> "Az önce"
+                                        diffInSeconds < 3600 -> "${diffInSeconds / 60} dakika önce"
+                                        diffInSeconds < 86400 -> "${diffInSeconds / 3600} saat önce"
+                                        else -> "${diffInSeconds / 86400} gün önce"
+                                    }
+                                    "🔴 Çevrimdışı • Son görülme: $timeText"
+                                } ?: "🔴 Çevrimdışı"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
-                        if (!user.isOnline && user.lastSeen != null) {
-                            Text(
-                                text = user.lastSeen?.let { lastSeen ->
-                                    val now = com.google.firebase.Timestamp.now()
-                                    val diffInSeconds = now.seconds - lastSeen.seconds
-                                    when {
-                                        diffInSeconds < 60 -> "Son görülme: Az önce"
-                                        diffInSeconds < 3600 -> "Son görülme: ${diffInSeconds / 60} dakika önce"
-                                        diffInSeconds < 86400 -> "Son görülme: ${diffInSeconds / 3600} saat önce"
-                                        else -> "Son görülme: ${diffInSeconds / 86400} gün önce"
-                                    }
-                                } ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
-                            )
-                        }
                     }
                 } else {
                     Text(

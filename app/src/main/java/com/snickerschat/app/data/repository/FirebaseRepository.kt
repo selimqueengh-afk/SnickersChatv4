@@ -468,6 +468,15 @@ class FirebaseRepository {
                         "timestamp" to now
                     )
                 ).await()
+                
+                // Set up onDisconnect to mark user as offline when connection is lost
+                onlineStatusRef.child(currentUserId).onDisconnect().setValue(
+                    mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to now,
+                        "timestamp" to now
+                    )
+                )
             } else {
                 onlineStatusRef.child(currentUserId).setValue(
                     mapOf(
@@ -476,6 +485,9 @@ class FirebaseRepository {
                         "timestamp" to now
                     )
                 ).await()
+                
+                // Remove onDisconnect when user goes offline manually
+                onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
             }
             
             // Also update in Firestore for persistence
@@ -617,5 +629,29 @@ class FirebaseRepository {
         )
         
         awaitClose { onlineStatusRef.child(userId).removeEventListener(listener) }
+    }
+    
+    fun getMessageReadStatusFlow(chatRoomId: String): Flow<Map<String, Boolean>> = callbackFlow {
+        val listener = messageReadRef.child(chatRoomId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val readMessages = mutableMapOf<String, Boolean>()
+                    for (child in snapshot.children) {
+                        val messageId = child.key
+                        val readBy = child.child("readBy").getValue(String::class.java)
+                        if (messageId != null && readBy != null) {
+                            readMessages[messageId] = true
+                        }
+                    }
+                    trySend(readMessages)
+                }
+                
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    // Handle error
+                }
+            }
+        )
+        
+        awaitClose { messageReadRef.child(chatRoomId).removeEventListener(listener) }
     }
 }
