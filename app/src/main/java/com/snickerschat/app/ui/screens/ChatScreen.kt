@@ -7,12 +7,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -66,6 +70,10 @@ fun ChatScreen(
     var selectedMessageForDelete by remember { mutableStateOf<String?>(null) }
     var showMessageOptionsDialog by remember { mutableStateOf(false) }
     var selectedMessageForOptions by remember { mutableStateOf<MessageWithUser?>(null) }
+    var showReplyDialog by remember { mutableStateOf(false) }
+    var selectedMessageForReply by remember { mutableStateOf<MessageWithUser?>(null) }
+    var showReactionDialog by remember { mutableStateOf(false) }
+    var selectedMessageForReaction by remember { mutableStateOf<MessageWithUser?>(null) }
     
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
@@ -424,6 +432,16 @@ fun ChatScreen(
                                 showMessageOptionsDialog = true
                                 selectedMessageForOptions = messageWithUser
                             },
+                            onReply = {
+                                // Swipe to reply
+                                selectedMessageForReply = messageWithUser
+                                showReplyDialog = true
+                            },
+                            onReaction = {
+                                // Double tap for reaction
+                                selectedMessageForReaction = messageWithUser
+                                showReactionDialog = true
+                            },
                             modifier = Modifier.animateItemPlacement(
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -654,8 +672,9 @@ fun ChatScreen(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    // TODO: Implement reply feature
-                                    chatViewModel.showError("Yanıtlama özelliği yakında eklenecek!")
+                                    // Implement reply feature
+                                    selectedMessageForReply = messageWithUser
+                                    showReplyDialog = true
                                     showMessageOptionsDialog = false
                                     selectedMessageForOptions = null
                                 }
@@ -685,8 +704,9 @@ fun ChatScreen(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    // TODO: Implement reaction feature
-                                    chatViewModel.showError("Tepki özelliği yakında eklenecek!")
+                                    // Implement reaction feature
+                                    selectedMessageForReaction = messageWithUser
+                                    showReactionDialog = true
                                     showMessageOptionsDialog = false
                                     selectedMessageForOptions = null
                                 }
@@ -745,6 +765,128 @@ fun ChatScreen(
         }
     }
     
+    // Reply Dialog
+    if (showReplyDialog && selectedMessageForReply != null) {
+        var replyText by remember { mutableStateOf("") }
+        
+        AlertDialog(
+            onDismissRequest = { 
+                showReplyDialog = false 
+                selectedMessageForReply = null
+                replyText = ""
+            },
+            title = { Text("Yanıtla") },
+            text = {
+                Column {
+                    // Original message preview
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = selectedMessageForReply?.message?.content ?: "",
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Reply input
+                    OutlinedTextField(
+                        value = replyText,
+                        onValueChange = { replyText = it },
+                        placeholder = { Text("Yanıtınızı yazın...") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (replyText.isNotBlank()) {
+                            // TODO: Send reply with reference to original message
+                            chatViewModel.sendMessage(receiverId, "↩️ ${replyText}")
+                            showReplyDialog = false
+                            selectedMessageForReply = null
+                            replyText = ""
+                        }
+                    }
+                ) {
+                    Text("Gönder")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showReplyDialog = false
+                        selectedMessageForReply = null
+                        replyText = ""
+                    }
+                ) {
+                    Text("İptal")
+                }
+            }
+        )
+    }
+    
+    // Reaction Dialog
+    if (showReactionDialog && selectedMessageForReaction != null) {
+        val emojis = listOf("❤️", "👍", "👎", "😂", "😮", "😢", "😡", "🎉")
+        
+        AlertDialog(
+            onDismissRequest = { 
+                showReactionDialog = false 
+                selectedMessageForReaction = null
+            },
+            title = { Text("Tepki Ver") },
+            text = {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(emojis) { emoji ->
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    // TODO: Add reaction to message
+                                    chatViewModel.showError("Tepki eklendi: $emoji")
+                                    showReactionDialog = false
+                                    selectedMessageForReaction = null
+                                }
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = emoji,
+                                fontSize = 24.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showReactionDialog = false
+                        selectedMessageForReaction = null
+                    }
+                ) {
+                    Text("İptal")
+                }
+            }
+        )
+    }
+    
     // Delete Confirmation Dialog
     if (showDeleteDialog) {
         AlertDialog(
@@ -784,6 +926,8 @@ fun ChatScreen(
 fun MessageItem(
     messageWithUser: MessageWithUser,
     onLongClick: () -> Unit,
+    onReply: () -> Unit,
+    onReaction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isFromCurrentUser = messageWithUser.isFromCurrentUser
@@ -807,6 +951,25 @@ fun MessageItem(
                             isPressed = true
                             tryAwaitRelease()
                             isPressed = false
+                        },
+                        onDoubleTap = { onReaction() }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragEnd = { },
+                        onDragCancel = { },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val (x, y) = dragAmount
+                            // Swipe left to reply (for received messages)
+                            if (!isFromCurrentUser && x < -50) {
+                                onReply()
+                            }
+                            // Swipe right to reply (for sent messages)
+                            if (isFromCurrentUser && x > 50) {
+                                onReply()
+                            }
                         }
                     )
                 }
