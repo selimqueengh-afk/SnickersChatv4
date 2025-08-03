@@ -7,6 +7,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.messaging.FirebaseMessaging
 import com.snickerschat.app.data.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -30,6 +31,7 @@ class FirebaseRepository {
     private val userStatusRef = rtdb.getReference("userStatus")
     private val typingStatusRef = rtdb.getReference("typing_status")
     private val messageReadRef = rtdb.getReference("message_read")
+    private val fcmTokensRef = rtdb.getReference("fcm_tokens")
     
     // Authentication
     suspend fun signInAnonymously(): Result<String> {
@@ -538,6 +540,41 @@ class FirebaseRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error marking messages as read: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    // FCM Token Management
+    suspend fun getFCMToken(): Result<String> {
+        return try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            println("FirebaseRepository: FCM token obtained: $token")
+            Result.success(token)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error getting FCM token: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun saveFCMToken(userId: String, token: String): Result<Unit> {
+        return try {
+            fcmTokensRef.child(userId).setValue(token).await()
+            println("FirebaseRepository: FCM token saved for user: $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error saving FCM token: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getFCMTokenForUser(userId: String): Result<String?> {
+        return try {
+            val snapshot = fcmTokensRef.child(userId).get().await()
+            val token = snapshot.getValue(String::class.java)
+            println("FirebaseRepository: FCM token for user $userId: $token")
+            Result.success(token)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error getting FCM token for user: ${e.message}")
             Result.failure(e)
         }
     }

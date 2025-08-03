@@ -55,6 +55,16 @@ class MainActivity : ComponentActivity() {
                 delay(1000) // Wait 1 second to avoid conflicts
                 repository.updateUserOnlineStatus(true)
                 println("MainActivity: DEBUG - Successfully set user as online")
+                
+                // Save FCM token
+                currentUser?.id?.let { userId ->
+                    repository.getFCMToken().onSuccess { token ->
+                        repository.saveFCMToken(userId, token)
+                        println("MainActivity: DEBUG - FCM token saved")
+                    }.onFailure { exception ->
+                        println("MainActivity: ERROR - Failed to get FCM token: ${exception.message}")
+                    }
+                }
             } catch (e: Exception) {
                 println("MainActivity: ERROR - Failed to set user as online: ${e.message}")
             }

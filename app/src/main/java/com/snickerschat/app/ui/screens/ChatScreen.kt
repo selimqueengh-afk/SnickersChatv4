@@ -3,7 +3,12 @@ package com.snickerschat.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.SwipeToDismiss
+import androidx.compose.material.rememberDismissState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -20,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -398,13 +404,35 @@ fun ChatScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(chatState.messages) { messageWithUser ->
-                        MessageItem(
-                            messageWithUser = messageWithUser,
-                            onLongClick = {
-                                // Handle long click for copy/delete
-                            }
-                        )
+                    items(
+                        items = chatState.messages,
+                        key = { it.message.id }
+                    ) { messageWithUser ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
+                                animationSpec = tween(durationMillis = 300)
+                            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                            modifier = Modifier.animateItemPlacement(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        ) {
+                            SwipeToDeleteItem(
+                                messageWithUser = messageWithUser,
+                                onDelete = {
+                                    // TODO: Implement message deletion
+                                    println("Delete message: ${messageWithUser.message.id}")
+                                },
+                                onLongClick = {
+                                    // TODO: Show message options (copy, edit, reply)
+                                    println("Long click message: ${messageWithUser.message.id}")
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -412,8 +440,18 @@ fun ChatScreen(
 
         }
         
-        // Typing indicator
-        if (chatState.isOtherUserTyping) {
+        // Animated Typing indicator
+        AnimatedVisibility(
+            visible = chatState.isOtherUserTyping,
+            enter = slideInVertically(
+                initialOffsetY = { 50 },
+                animationSpec = tween(durationMillis = 200)
+            ) + fadeIn(animationSpec = tween(durationMillis = 200)),
+            exit = slideOutVertically(
+                targetOffsetY = { 50 },
+                animationSpec = tween(durationMillis = 200)
+            ) + fadeOut(animationSpec = tween(durationMillis = 200))
+        ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -428,16 +466,40 @@ fun ChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Yazıyor...",
+                        text = "Yazıyor",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(12.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    
+                    // Animated typing dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        repeat(3) { index ->
+                            val infiniteTransition = rememberInfiniteTransition()
+                            val alpha by infiniteTransition.animateFloat(
+                                initialValue = 0.3f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(
+                                        durationMillis = 600,
+                                        delayMillis = index * 200
+                                    ),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -521,6 +583,9 @@ fun MessageItem(
     val isFromCurrentUser = messageWithUser.isFromCurrentUser
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     
+    // Hover state for message bubble
+    var isHovered by remember { mutableStateOf(false) }
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start
@@ -528,7 +593,24 @@ fun MessageItem(
         Card(
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .padding(vertical = 2.dp),
+                .padding(vertical = 2.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = { onLongClick() },
+                        onPress = { /* Handle normal tap */ }
+                    )
+                }
+                .graphicsLayer {
+                    scaleX = if (isHovered) 1.02f else 1f
+                    scaleY = if (isHovered) 1.02f else 1f
+                    shadowElevation = if (isHovered) 8f else 2f
+                }
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -537,9 +619,17 @@ fun MessageItem(
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isFromCurrentUser) {
-                    MaterialTheme.colorScheme.primary
+                    if (isHovered) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                    if (isHovered) {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
                 }
             )
         ) {
@@ -620,4 +710,58 @@ fun MessageItem(
             )
         }
     }
+}
+
+@Composable
+fun SwipeToDeleteItem(
+    messageWithUser: MessageWithUser,
+    onDelete: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    val dismissState = rememberDismissState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == DismissValue.DismissedToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        }
+    )
+    
+    SwipeToDismiss(
+        state = dismissState,
+        background = {
+            val direction = dismissState.dismissDirection
+            val color by animateColorAsState(
+                targetValue = when (direction) {
+                    DismissDirection.StartToEnd -> Color.Transparent
+                    DismissDirection.EndToStart -> Color.Red
+                    null -> Color.Transparent
+                },
+                label = "color"
+            )
+            val alignment = Alignment.CenterEnd
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(color)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = alignment
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Sil",
+                    tint = Color.White
+                )
+            }
+        },
+        dismissContent = {
+            MessageItem(
+                messageWithUser = messageWithUser,
+                onLongClick = onLongClick
+            )
+        },
+        directions = setOf(DismissDirection.EndToStart)
+    )
 }
