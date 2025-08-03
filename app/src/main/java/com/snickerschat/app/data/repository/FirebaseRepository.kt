@@ -201,22 +201,24 @@ class FirebaseRepository {
             // Check if chat room already exists
             val existingChatRoom = chatRoomsCollection
                 .whereArrayContains("participants", request.senderId)
-                .whereArrayContains("participants", request.receiverId)
                 .get()
                 .await()
+                .documents
+                .filter { doc ->
+                    val chatRoom = doc.toObject(ChatRoom::class.java)
+                    chatRoom?.participants?.contains(request.receiverId) == true
+                }
             
             // Create chat room only if it doesn't exist
-            if (existingChatRoom.documents.isEmpty()) {
+            if (existingChatRoom.isEmpty()) {
                 val chatRoom = ChatRoom(
                     participants = listOf(request.senderId, request.receiverId),
                     lastMessageTimestamp = com.google.firebase.Timestamp.now()
                 )
                 val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
                 println("Chat room created with ID: ${chatRoomRef.id}")
-                throw Exception("Chat room başarıyla oluşturuldu! ID: ${chatRoomRef.id}")
             } else {
                 println("Chat room already exists")
-                throw Exception("Chat room zaten mevcut!")
             }
             
             Result.success(Unit)
@@ -274,12 +276,16 @@ class FirebaseRepository {
             // Find or create chat room
             val chatRoomQuery = chatRoomsCollection
                 .whereArrayContains("participants", senderId)
-                .whereArrayContains("participants", receiverId)
                 .get()
                 .await()
+                .documents
+                .filter { doc ->
+                    val chatRoom = doc.toObject(ChatRoom::class.java)
+                    chatRoom?.participants?.contains(receiverId) == true
+                }
             
-            val chatRoomId = if (chatRoomQuery.documents.isNotEmpty()) {
-                chatRoomQuery.documents.first().id
+            val chatRoomId = if (chatRoomQuery.isNotEmpty()) {
+                chatRoomQuery.first().id
             } else {
                 val newChatRoom = ChatRoom(participants = listOf(senderId, receiverId))
                 chatRoomsCollection.add(newChatRoom).await().id
