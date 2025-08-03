@@ -472,6 +472,8 @@ class FirebaseRepository {
             val now = System.currentTimeMillis()
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
+            println("FirebaseRepository: Current user ID: $currentUserId")
+            println("FirebaseRepository: Auth current user: ${auth.currentUser?.uid}")
             
             // Update ONLY in RTDB for real-time
             if (isOnline) {
@@ -535,15 +537,16 @@ class FirebaseRepository {
                             val receiverId = messageData["receiverId"] as? String
                             val content = messageData["content"] as? String
                             val chatRoomId = messageData["chatRoomId"] as? String
+                            val timestamp = messageData["timestamp"] as? Long
                             
                             // Only create message if all required fields are present
-                            if (id != null && senderId != null && receiverId != null && content != null && chatRoomId != null) {
+                            if (id != null && senderId != null && receiverId != null && content != null && chatRoomId != null && timestamp != null) {
                                 val message = Message(
                                     id = id,
                                     senderId = senderId,
                                     receiverId = receiverId,
                                     content = content,
-                                    timestamp = com.google.firebase.Timestamp.now(), // Convert from long
+                                    timestamp = com.google.firebase.Timestamp(timestamp / 1000, ((timestamp % 1000) * 1000000).toInt()),
                                     isRead = messageData["isRead"] as? Boolean ?: false,
                                     chatRoomId = chatRoomId
                                 )
@@ -551,6 +554,9 @@ class FirebaseRepository {
                             }
                         }
                     }
+                    
+                    // Sort messages by timestamp (oldest first)
+                    messages.sortBy { it.timestamp.seconds }
                     
                     println("FirebaseRepository: Found ${messages.size} messages in RTDB")
                     trySend(messages)
@@ -663,10 +669,12 @@ class FirebaseRepository {
                     println("FirebaseRepository: Online status data changed for user $userId")
                     println("FirebaseRepository: Snapshot exists: ${snapshot.exists()}")
                     println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    println("FirebaseRepository: Snapshot key: ${snapshot.key}")
                     
                     if (snapshot.exists()) {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
                         println("FirebaseRepository: Online status changed for user $userId: $isOnline")
+                        println("FirebaseRepository: Raw isOnline value: ${snapshot.child("isOnline").getValue()}")
                         trySend(isOnline)
                     } else {
                         println("FirebaseRepository: No online status data for user $userId, defaulting to offline")

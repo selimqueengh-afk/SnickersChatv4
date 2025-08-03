@@ -125,7 +125,7 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status from RTDB
+        // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
         viewModelScope.launch {
             _chatState.value.otherUserId?.let { otherUserId ->
                 println("ChatViewModel: Starting online status listener for user: $otherUserId")
