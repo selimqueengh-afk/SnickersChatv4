@@ -34,6 +34,7 @@ import com.snickerschat.app.ui.viewmodel.ChatViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,17 +108,17 @@ fun ChatScreen(
         // Top bar
         TopAppBar(
             title = { 
-                if (otherUser != null) {
+                otherUser?.let { user ->
                     Column {
                         Text(
-                            text = otherUser.username,
+                            text = user.username,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = if (otherUser.isOnline) {
+                            text = if (user.isOnline) {
                                 "🟢 Çevrimiçi"
                             } else {
                                 "🔴 Çevrimdışı"
@@ -127,9 +128,9 @@ fun ChatScreen(
                         )
                         
                         // Show last seen time only when offline
-                        if (!otherUser.isOnline && otherUser.lastSeen != null) {
+                        if (!user.isOnline && user.lastSeen != null) {
                             Text(
-                                text = otherUser.lastSeen.let { lastSeen ->
+                                text = user.lastSeen.let { lastSeen ->
                                     val now = com.google.firebase.Timestamp.now()
                                     val diffInSeconds = now.seconds - lastSeen.seconds
                                     
