@@ -433,6 +433,8 @@ class FirebaseRepository {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
             val now = com.google.firebase.Timestamp.now()
             
+            println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
+            
             usersCollection.document(currentUserId).update(
                 mapOf(
                     "isOnline" to isOnline,
@@ -440,8 +442,10 @@ class FirebaseRepository {
                 )
             ).await()
             
+            println("FirebaseRepository: Online status updated successfully")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("FirebaseRepository: Error updating online status: ${e.message}")
             Result.failure(e)
         }
     }

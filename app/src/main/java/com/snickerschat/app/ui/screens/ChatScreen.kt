@@ -106,21 +106,30 @@ fun ChatScreen(
                             text = if (otherUser.isOnline) {
                                 "🟢 Çevrimiçi"
                             } else {
-                                otherUser.lastSeen?.let { lastSeen ->
-                                    val now = com.google.firebase.Timestamp.now()
-                                    val diffInSeconds = now.seconds - lastSeen.seconds
-                                    
-                                    when {
-                                        diffInSeconds < 60 -> "🔴 Az önce"
-                                        diffInSeconds < 3600 -> "🔴 ${diffInSeconds / 60} dakika önce"
-                                        diffInSeconds < 86400 -> "🔴 ${diffInSeconds / 3600} saat önce"
-                                        else -> "🔴 ${diffInSeconds / 86400} gün önce"
-                                    }
-                                } ?: "🔴 Çevrimdışı"
+                                "🔴 Çevrimdışı"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
+                        
+                        // Show last seen time only when offline
+                        if (!otherUser.isOnline && otherUser.lastSeen != null) {
+                            Text(
+                                text = otherUser.lastSeen.let { lastSeen ->
+                                    val now = com.google.firebase.Timestamp.now()
+                                    val diffInSeconds = now.seconds - lastSeen.seconds
+                                    
+                                    when {
+                                        diffInSeconds < 60 -> "Son görülme: Az önce"
+                                        diffInSeconds < 3600 -> "Son görülme: ${diffInSeconds / 60} dakika önce"
+                                        diffInSeconds < 86400 -> "Son görülme: ${diffInSeconds / 3600} saat önce"
+                                        else -> "Son görülme: ${diffInSeconds / 86400} gün önce"
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 } else {
                     Text(
@@ -174,12 +183,7 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            // Check if we need to show scroll to bottom button
-            val showScrollToBottom by remember {
-                derivedStateOf {
-                    listState.firstVisibleItemIndex < chatState.messages.size - 3
-                }
-            }
+
             if (chatState.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -227,27 +231,7 @@ fun ChatScreen(
                 }
             }
             
-            // Scroll to bottom button
-            if (chatState.messages.size > 5) {
-                val coroutineScope = rememberCoroutineScope()
-                FloatingActionButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            listState.animateScrollToItem(chatState.messages.size - 1)
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.scroll_to_bottom)
-                    )
-                }
-            }
+
         }
         
         // Message input
@@ -394,7 +378,7 @@ fun MessageItem(
                             },
                             modifier = Modifier.size(16.dp),
                             tint = if (messageWithUser.message.isRead) {
-                                MaterialTheme.colorScheme.onPrimary
+                                Color.Blue // Mavi renk for read messages
                             } else {
                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                             }
