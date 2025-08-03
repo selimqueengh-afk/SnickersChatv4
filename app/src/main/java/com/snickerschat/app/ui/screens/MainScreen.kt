@@ -85,7 +85,11 @@ fun MainScreen(
                         }
                     )
                     Screen.Friends -> FriendsScreen(
-                        friendsViewModel = friendsViewModel
+                        friendsViewModel = friendsViewModel,
+                        onChatRoomCreated = {
+                            // Refresh chat list when a new chat room is created
+                            chatListViewModel.loadChatRooms()
+                        }
                     )
                     Screen.Settings -> SettingsScreen(onSignOut = onSignOut)
                 }
@@ -236,7 +240,8 @@ fun ChatItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
-    friendsViewModel: FriendsViewModel
+    friendsViewModel: FriendsViewModel,
+    onChatRoomCreated: () -> Unit = {}
 ) {
     val friendsState by friendsViewModel.friendsState.collectAsState()
     
@@ -268,7 +273,7 @@ fun FriendsScreen(
                     val request = friendsState.friendRequests[index]
                     FriendRequestItem(
                         request = request,
-                        onAccept = { friendsViewModel.acceptFriendRequest(request.request.id) },
+                        onAccept = { friendsViewModel.acceptFriendRequest(request.request.id, onChatRoomCreated) },
                         onDecline = { friendsViewModel.declineFriendRequest(request.request.id) }
                     )
                 }

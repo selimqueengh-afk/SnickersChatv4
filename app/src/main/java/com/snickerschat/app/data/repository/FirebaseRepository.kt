@@ -191,18 +191,28 @@ class FirebaseRepository {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
             
-            // Update request status
-            friendRequestsCollection.document(requestId).update("status", RequestStatus.ACCEPTED).await()
-            
-            // Get request details
+            // Get request details first
             val request = friendRequestsCollection.document(requestId).get().await()
                 .toObject(FriendRequest::class.java) ?: throw Exception("Request not found")
             
-            // Create chat room
-            val chatRoom = ChatRoom(
-                participants = listOf(request.senderId, request.receiverId)
-            )
-            chatRoomsCollection.add(chatRoom).await()
+            // Update request status
+            friendRequestsCollection.document(requestId).update("status", RequestStatus.ACCEPTED).await()
+            
+            // Check if chat room already exists
+            val existingChatRoom = chatRoomsCollection
+                .whereArrayContains("participants", request.senderId)
+                .whereArrayContains("participants", request.receiverId)
+                .get()
+                .await()
+            
+            // Create chat room only if it doesn't exist
+            if (existingChatRoom.documents.isEmpty()) {
+                val chatRoom = ChatRoom(
+                    participants = listOf(request.senderId, request.receiverId),
+                    lastMessageTimestamp = com.google.firebase.Timestamp.now()
+                )
+                chatRoomsCollection.add(chatRoom).await()
+            }
             
             Result.success(Unit)
         } catch (e: Exception) {

@@ -96,12 +96,14 @@ class FriendsViewModel(
         }
     }
     
-    fun acceptFriendRequest(requestId: String) {
+    fun acceptFriendRequest(requestId: String, onChatRoomCreated: () -> Unit = {}) {
         viewModelScope.launch {
             repository.acceptFriendRequest(requestId)
                 .onSuccess {
                     // Refresh friend requests
                     loadFriendRequests()
+                    // Notify that chat room was created
+                    onChatRoomCreated()
                 }
                 .onFailure { exception ->
                     _friendsState.value = _friendsState.value.copy(
