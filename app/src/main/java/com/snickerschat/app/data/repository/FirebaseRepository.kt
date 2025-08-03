@@ -27,7 +27,7 @@ class FirebaseRepository {
     private val friendRequestsCollection = firestore.collection("requests")
     
     // RTDB References for real-time features
-    private val onlineStatusRef = rtdb.getReference("online_status")
+    private val userStatusRef = rtdb.getReference("userStatus")
     private val typingStatusRef = rtdb.getReference("typing_status")
     private val messageReadRef = rtdb.getReference("message_read")
     
@@ -476,9 +476,9 @@ class FirebaseRepository {
             
             println("FirebaseRepository: DEBUG - User ID: $currentUserId")
             println("FirebaseRepository: DEBUG - Updating online status: $isOnline")
-            println("FirebaseRepository: DEBUG - RTDB path: ${onlineStatusRef.child(currentUserId).toString()}")
+            println("FirebaseRepository: DEBUG - RTDB path: ${userStatusRef.child(currentUserId).toString()}")
             
-            // Update in RTDB only
+            // Update in RTDB only - userStatus/{userId} structure
             val statusData = if (isOnline) {
                 mapOf(
                     "isOnline" to true,
@@ -494,12 +494,12 @@ class FirebaseRepository {
             println("FirebaseRepository: DEBUG - Status data to write: $statusData")
             
             // Update in RTDB
-            onlineStatusRef.child(currentUserId).setValue(statusData).await()
+            userStatusRef.child(currentUserId).setValue(statusData).await()
             println("FirebaseRepository: DEBUG - Successfully wrote to RTDB")
             
             // Set up onDisconnect when going online
             if (isOnline) {
-                onlineStatusRef.child(currentUserId).onDisconnect().setValue(
+                userStatusRef.child(currentUserId).onDisconnect().setValue(
                     mapOf(
                         "isOnline" to false,
                         "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
@@ -508,7 +508,7 @@ class FirebaseRepository {
                 println("FirebaseRepository: DEBUG - onDisconnect set up for user")
             } else {
                 // Remove onDisconnect when going offline manually
-                onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
+                userStatusRef.child(currentUserId).onDisconnect().removeValue()
                 println("FirebaseRepository: DEBUG - onDisconnect removed for user")
             }
             
@@ -670,9 +670,9 @@ class FirebaseRepository {
         }
         
         println("FirebaseRepository: DEBUG - Starting online status listener for user: $userId")
-        println("FirebaseRepository: DEBUG - RTDB path: ${onlineStatusRef.child(userId).toString()}")
+        println("FirebaseRepository: DEBUG - RTDB path: ${userStatusRef.child(userId).toString()}")
         
-        val listener = onlineStatusRef.child(userId).addValueEventListener(
+        val listener = userStatusRef.child(userId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                     println("FirebaseRepository: DEBUG - onDataChange triggered for user $userId")
@@ -718,7 +718,7 @@ class FirebaseRepository {
         
         awaitClose { 
             println("FirebaseRepository: DEBUG - Removing online status listener for user: $userId")
-            onlineStatusRef.child(userId).removeEventListener(listener) 
+            userStatusRef.child(userId).removeEventListener(listener) 
         }
     }
     
