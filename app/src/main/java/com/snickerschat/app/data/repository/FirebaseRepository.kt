@@ -477,29 +477,31 @@ class FirebaseRepository {
             val statusData = if (isOnline) {
                 mapOf(
                     "isOnline" to true,
-                    "lastSeen" to null,
-                    "timestamp" to now
+                    "lastSeen" to null
                 )
             } else {
                 mapOf(
                     "isOnline" to false,
-                    "lastSeen" to now,
-                    "timestamp" to now
+                    "lastSeen" to now
                 )
             }
             
             // Update in RTDB
             onlineStatusRef.child(currentUserId).setValue(statusData).await()
             
-            // Set up onDisconnect only when going online
+            // Set up onDisconnect when going online
             if (isOnline) {
                 onlineStatusRef.child(currentUserId).onDisconnect().setValue(
                     mapOf(
                         "isOnline" to false,
-                        "lastSeen" to now,
-                        "timestamp" to now
+                        "lastSeen" to now
                     )
                 )
+                println("FirebaseRepository: onDisconnect set up for user")
+            } else {
+                // Remove onDisconnect when going offline manually
+                onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
+                println("FirebaseRepository: onDisconnect removed for user")
             }
             
             println("FirebaseRepository: Online status updated successfully in RTDB")
@@ -662,12 +664,10 @@ class FirebaseRepository {
                     if (snapshot.exists()) {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
                         val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java)
-                        val timestamp = snapshot.child("timestamp").getValue(Long::class.java)
                         
                         val statusData = mapOf(
                             "isOnline" to isOnline,
-                            "lastSeen" to lastSeen,
-                            "timestamp" to timestamp
+                            "lastSeen" to lastSeen
                         )
                         
                         println("FirebaseRepository: Online status for user $userId: $isOnline, lastSeen: $lastSeen")
@@ -676,8 +676,7 @@ class FirebaseRepository {
                         println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
                         trySend(mapOf(
                             "isOnline" to false,
-                            "lastSeen" to null,
-                            "timestamp" to null
+                            "lastSeen" to null
                         ))
                     }
                 }
@@ -686,8 +685,7 @@ class FirebaseRepository {
                     println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
                     trySend(mapOf(
                         "isOnline" to false,
-                        "lastSeen" to null,
-                        "timestamp" to null
+                        "lastSeen" to null
                     ))
                 }
             }

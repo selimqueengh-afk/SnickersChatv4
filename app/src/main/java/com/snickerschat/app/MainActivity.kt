@@ -50,10 +50,10 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         // Set user as offline when app goes to background
-        println("MainActivity: onPause - setting user as offline")
+        println("MainActivity: onStop - setting user as offline")
         scope.launch {
             repository.updateUserOnlineStatus(false)
         }
