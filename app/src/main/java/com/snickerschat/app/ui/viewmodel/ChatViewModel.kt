@@ -32,11 +32,23 @@ class ChatViewModel(
                     
                     if (otherUserId != null) {
                         println("ChatViewModel: Other user ID: $otherUserId")
-                        // Store the other user ID for message sending
-                        _chatState.value = _chatState.value.copy(otherUserId = otherUserId)
+                        
+                        // Load the other user's information
+                        repository.getUser(otherUserId)
+                            .onSuccess { otherUser ->
+                                println("ChatViewModel: Other user loaded: ${otherUser.username}")
+                                _chatState.value = _chatState.value.copy(
+                                    otherUserId = otherUserId,
+                                    otherUser = otherUser
+                                )
+                            }
+                            .onFailure { exception ->
+                                println("ChatViewModel: Failed to load other user: ${exception.message}")
+                                _chatState.value = _chatState.value.copy(otherUserId = otherUserId)
+                            }
                     }
                     
-                    // Now load messages
+                    // Now load initial messages
                     repository.getMessages(chatRoomId)
                         .onSuccess { messages ->
                             // Convert messages to MessageWithUser
@@ -72,6 +84,32 @@ class ChatViewModel(
                         error = exception.message ?: "Sohbet yüklenemedi"
                     )
                 }
+        }
+        
+        // Start real-time listener for messages
+        viewModelScope.launch {
+            repository.getMessagesFlow(chatRoomId).collect { messages ->
+                println("ChatViewModel: Real-time messages update: ${messages.size} messages")
+                
+                // Convert messages to MessageWithUser
+                val messagesWithUser = mutableListOf<MessageWithUser>()
+                val currentUserId = getCurrentUserId()
+                
+                for (message in messages) {
+                    repository.getUser(message.senderId)
+                        .onSuccess { user ->
+                            messagesWithUser.add(
+                                MessageWithUser(
+                                    message = message,
+                                    sender = user,
+                                    isFromCurrentUser = message.senderId == currentUserId
+                                )
+                            )
+                        }
+                }
+                
+                _chatState.value = _chatState.value.copy(messages = messagesWithUser)
+            }
         }
     }
     

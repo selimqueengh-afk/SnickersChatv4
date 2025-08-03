@@ -31,7 +31,8 @@ data class ChatState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isTyping: Boolean = false,
-    val otherUserId: String? = null
+    val otherUserId: String? = null,
+    val otherUser: User? = null
 )
 
 data class MessageWithUser(

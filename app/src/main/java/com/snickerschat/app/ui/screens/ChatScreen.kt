@@ -52,10 +52,8 @@ fun ChatScreen(
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
     
-    // Get other user info for the header - try from messages first, then from chat state
-    val otherUser = remember(chatState.messages, chatState.otherUserId) {
-        chatState.messages.firstOrNull { !it.isFromCurrentUser }?.sender
-    }
+    // Get other user info for the header - from chat state
+    val otherUser = chatState.otherUser
     
     // Update receiver ID when chat state changes
     LaunchedEffect(chatState.otherUserId) {
