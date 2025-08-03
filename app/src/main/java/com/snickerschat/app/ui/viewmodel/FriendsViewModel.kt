@@ -117,6 +117,7 @@ class FriendsViewModel(
                     onChatRoomCreated()
                 }
                 .onFailure { exception ->
+                    // Show the debug message
                     _friendsState.value = _friendsState.value.copy(
                         error = exception.message ?: "Arkadaşlık isteği kabul edilemedi"
                     )

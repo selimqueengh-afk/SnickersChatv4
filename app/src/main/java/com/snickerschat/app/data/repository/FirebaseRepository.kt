@@ -213,8 +213,10 @@ class FirebaseRepository {
                 )
                 val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
                 println("Chat room created with ID: ${chatRoomRef.id}")
+                throw Exception("Chat room başarıyla oluşturuldu! ID: ${chatRoomRef.id}")
             } else {
                 println("Chat room already exists")
+                throw Exception("Chat room zaten mevcut!")
             }
             
             Result.success(Unit)
