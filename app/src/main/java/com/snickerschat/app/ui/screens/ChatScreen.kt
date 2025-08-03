@@ -57,6 +57,12 @@ fun ChatScreen(
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     val scope = rememberCoroutineScope()
     
+    // Dialog states
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedMessageForDelete by remember { mutableStateOf<String?>(null) }
+    var showMessageOptionsDialog by remember { mutableStateOf(false) }
+    var selectedMessageForOptions by remember { mutableStateOf<MessageWithUser?>(null) }
+    
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
     
@@ -410,8 +416,9 @@ fun ChatScreen(
                         MessageItem(
                             messageWithUser = messageWithUser,
                             onLongClick = {
-                                // TODO: Show message options (copy, edit, reply)
-                                println("Long click message: ${messageWithUser.message.id}")
+                                // Show message options
+                                showMessageOptionsDialog = true
+                                selectedMessageForOptions = messageWithUser
                             }
                         )
                     }
@@ -553,6 +560,115 @@ fun ChatScreen(
                 }
             }
         }
+    }
+    
+    // Message Options Dialog
+    if (showMessageOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showMessageOptionsDialog = false },
+            title = { Text("Mesaj Seçenekleri") },
+            text = { Text("Bu mesaj için ne yapmak istiyorsunuz?") },
+            confirmButton = {
+                Column {
+                    // Copy message
+                    TextButton(
+                        onClick = {
+                            selectedMessageForOptions?.let { messageWithUser ->
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("Mesaj", messageWithUser.message.content)
+                                clipboard.setPrimaryClip(clip)
+                                chatViewModel.showError("Mesaj kopyalandı!")
+                            }
+                            showMessageOptionsDialog = false
+                            selectedMessageForOptions = null
+                        }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Kopyala",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text("Kopyala")
+                        }
+                    }
+                    
+                    // Delete message (only for own messages)
+                    selectedMessageForOptions?.let { messageWithUser ->
+                        if (messageWithUser.isFromCurrentUser) {
+                            TextButton(
+                                onClick = {
+                                    showMessageOptionsDialog = false
+                                    showDeleteDialog = true
+                                    selectedMessageForDelete = messageWithUser.message.id
+                                    selectedMessageForOptions = null
+                                }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Sil",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Text("Sil", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showMessageOptionsDialog = false
+                        selectedMessageForOptions = null
+                    }
+                ) {
+                    Text("İptal")
+                }
+            }
+        )
+    }
+    
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Mesajı Sil") },
+            text = { Text("Bu mesajı silmek istediğinizden emin misiniz?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedMessageForDelete?.let { messageId ->
+                            // TODO: Implement message deletion in ViewModel
+                            println("Delete message: $messageId")
+                            chatViewModel.showError("Mesaj silme özelliği yakında eklenecek!")
+                        }
+                        showDeleteDialog = false
+                        selectedMessageForDelete = null
+                    }
+                ) {
+                    Text("Sil", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        selectedMessageForDelete = null
+                    }
+                ) {
+                    Text("İptal")
+                }
+            }
+        )
     }
 }
 

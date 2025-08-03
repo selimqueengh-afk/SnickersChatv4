@@ -46,7 +46,25 @@ fun MainScreen(
             NavigationBar {
                 listOf(Screen.Chats, Screen.Friends, Screen.Settings).forEach { screen ->
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
+                        icon = {
+                            Box {
+                                Icon(screen.icon, contentDescription = screen.title)
+                                // Badge for unread messages (only for Chats)
+                                if (screen == Screen.Chats) {
+                                    val unreadCount = chatListViewModel.getUnreadMessageCount()
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            modifier = Modifier.align(Alignment.TopEnd)
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
                         label = { Text(screen.title) },
                         selected = selectedScreen == screen,
                         onClick = {
