@@ -323,7 +323,8 @@ fun FriendsScreen(
                     UserItem(
                         user = user,
                         onAddFriend = { friendsViewModel.sendFriendRequest(user.id) },
-                        isRequestPending = friendsState.pendingRequests.contains(user.id)
+                        isRequestPending = friendsState.pendingRequests.contains(user.id),
+                        isAlreadyFriend = friendsState.existingFriends.contains(user.id)
                     )
                 }
             }
@@ -432,7 +433,8 @@ fun FriendRequestItem(
 fun UserItem(
     user: com.snickerschat.app.data.model.User,
     onAddFriend: () -> Unit,
-    isRequestPending: Boolean = false
+    isRequestPending: Boolean = false,
+    isAlreadyFriend: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -480,23 +482,32 @@ fun UserItem(
             }
             
             // Add friend button
-            Button(
-                onClick = onAddFriend,
-                enabled = !isRequestPending,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRequestPending) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.secondary
+            if (isAlreadyFriend) {
+                Text(
+                    text = "Arkadaşsınız",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(8.dp)
                 )
-            ) {
-                if (isRequestPending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        strokeWidth = 2.dp
+            } else {
+                Button(
+                    onClick = onAddFriend,
+                    enabled = !isRequestPending,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRequestPending) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.secondary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("İstek Gönderildi")
-                } else {
-                    Text(stringResource(R.string.add_friend))
+                ) {
+                    if (isRequestPending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("İstek Gönderildi")
+                    } else {
+                        Text(stringResource(R.string.add_friend))
+                    }
                 }
             }
         }

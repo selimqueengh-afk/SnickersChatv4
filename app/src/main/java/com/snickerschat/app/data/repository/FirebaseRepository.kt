@@ -156,6 +156,24 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun checkIfFriends(userId1: String, userId2: String): Result<Boolean> {
+        return try {
+            val chatRoomQuery = chatRoomsCollection
+                .whereArrayContains("participants", userId1)
+                .get()
+                .await()
+                .documents
+                .filter { doc ->
+                    val chatRoom = doc.toObject(ChatRoom::class.java)
+                    chatRoom?.participants?.contains(userId2) == true
+                }
+            
+            Result.success(chatRoomQuery.isNotEmpty())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
     // Friend requests
     suspend fun sendFriendRequest(receiverId: String): Result<Unit> {
         return try {
@@ -211,14 +229,18 @@ class FirebaseRepository {
                     containsReceiver
                 }
             
-            // Always create a new chat room for now (for debugging)
-            val chatRoom = ChatRoom(
-                participants = listOf(request.senderId, request.receiverId),
-                lastMessageTimestamp = com.google.firebase.Timestamp.now()
-            )
-            val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
-            println("Chat room created with ID: ${chatRoomRef.id}")
-            println("Participants: ${chatRoom.participants}")
+            // Create chat room only if it doesn't exist
+            if (existingChatRoom.isEmpty()) {
+                val chatRoom = ChatRoom(
+                    participants = listOf(request.senderId, request.receiverId),
+                    lastMessageTimestamp = com.google.firebase.Timestamp.now()
+                )
+                val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
+                println("Chat room created with ID: ${chatRoomRef.id}")
+                println("Participants: ${chatRoom.participants}")
+            } else {
+                println("Chat room already exists, skipping creation")
+            }
             
             Result.success(Unit)
         } catch (e: Exception) {

@@ -62,10 +62,26 @@ class FriendsViewModel(
                 error = null
             )
             
+            val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            
             repository.searchUsers(query.trim())
                 .onSuccess { users ->
+                    // Check which users are already friends
+                    val existingFriends = mutableSetOf<String>()
+                    for (user in users) {
+                        if (currentUserId != null) {
+                            repository.checkIfFriends(currentUserId, user.id)
+                                .onSuccess { areFriends ->
+                                    if (areFriends) {
+                                        existingFriends.add(user.id)
+                                    }
+                                }
+                        }
+                    }
+                    
                     _friendsState.value = _friendsState.value.copy(
                         searchResults = users,
+                        existingFriends = existingFriends,
                         isLoading = false
                     )
                 }

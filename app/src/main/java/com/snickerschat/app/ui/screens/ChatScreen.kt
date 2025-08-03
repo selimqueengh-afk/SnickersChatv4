@@ -47,6 +47,13 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
+    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    
+    // Get receiver ID from chat room participants
+    val receiverId = remember(chatRoomId, currentUserId) {
+        // This will be set when we load the chat room
+        ""
+    }
     
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
@@ -201,10 +208,19 @@ fun ChatScreen(
                 FloatingActionButton(
                     onClick = {
                         if (messageText.trim().isNotEmpty()) {
-                            // Get receiver ID from chat room
-                            val receiverId = chatState.messages.firstOrNull()?.message?.receiverId ?: ""
-                            chatViewModel.sendMessage(receiverId, messageText.trim())
-                            messageText = ""
+                            // Get receiver ID from the first message or use a placeholder
+                            val receiverId = chatState.messages.firstOrNull()?.let { messageWithUser ->
+                                if (messageWithUser.isFromCurrentUser) {
+                                    messageWithUser.message.receiverId
+                                } else {
+                                    messageWithUser.message.senderId
+                                }
+                            } ?: ""
+                            
+                            if (receiverId.isNotEmpty()) {
+                                chatViewModel.sendMessage(receiverId, messageText.trim())
+                                messageText = ""
+                            }
                         }
                     },
                     modifier = Modifier.size(48.dp),
