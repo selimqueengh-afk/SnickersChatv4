@@ -416,34 +416,38 @@ class FirebaseRepository {
             // Get all unread messages in this chat room where current user is the receiver
             val messagesSnapshot = messagesCollection
                 .whereEqualTo("chatRoomId", chatRoomId)
-                .whereEqualTo("receiverId", currentUserId)
+                .whereEqualTo("receiverId", currentUserId) // Only mark messages where current user is receiver
                 .whereEqualTo("isRead", false)
                 .get()
                 .await()
             
-            println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages")
+            println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages for user $currentUserId")
             
             for (messageDoc in messagesSnapshot.documents) {
                 val messageId = messageDoc.id
+                val message = messageDoc.toObject(Message::class.java)
                 
-                // Update in Firestore
-                messageDoc.reference.update(
-                    mapOf(
-                        "isRead" to true,
-                        "readAt" to now
-                    )
-                ).await()
-                
-                // Update in RTDB for real-time
-                messageReadRef.child(chatRoomId).child(messageId).setValue(
-                    mapOf(
-                        "readBy" to currentUserId,
-                        "readAt" to nowMillis,
-                        "timestamp" to nowMillis
-                    )
-                ).await()
-                
-                println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
+                // Only mark as read if current user is the receiver
+                if (message?.receiverId == currentUserId) {
+                    // Update in Firestore
+                    messageDoc.reference.update(
+                        mapOf(
+                            "isRead" to true,
+                            "readAt" to now
+                        )
+                    ).await()
+                    
+                    // Update in RTDB for real-time
+                    messageReadRef.child(chatRoomId).child(messageId).setValue(
+                        mapOf(
+                            "readBy" to currentUserId,
+                            "readAt" to nowMillis,
+                            "timestamp" to nowMillis
+                        )
+                    ).await()
+                    
+                    println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
+                }
             }
             
             Result.success(Unit)

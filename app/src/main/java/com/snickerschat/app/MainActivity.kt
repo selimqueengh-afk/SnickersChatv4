@@ -18,25 +18,47 @@ import com.snickerschat.app.ui.theme.SnickersChatTheme
 import com.snickerschat.app.ui.viewmodel.*
 
 class MainActivity : ComponentActivity() {
+    private lateinit var repository: FirebaseRepository
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        repository = FirebaseRepository()
+        
         setContent {
             SnickersChatTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SnickersChatApp()
+                    SnickersChatApp(repository)
                 }
             }
         }
     }
+    
+    override fun onResume() {
+        super.onResume()
+        // Set user as online when app becomes active
+        repository.updateUserOnlineStatus(true)
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Set user as offline when app goes to background
+        repository.updateUserOnlineStatus(false)
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Set user as offline when app is destroyed
+        repository.updateUserOnlineStatus(false)
+    }
 }
 
 @Composable
-fun SnickersChatApp() {
+fun SnickersChatApp(repository: FirebaseRepository) {
     val navController = rememberNavController()
-    val repository = remember { FirebaseRepository() }
     
     // ViewModels
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(repository) }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.snickerschat.app.data.model.Message
 
 class ChatViewModel(
     private val repository: FirebaseRepository
@@ -190,15 +191,41 @@ class ChatViewModel(
         
         println("ChatViewModel: Sending message to $receiverId: $content")
         
+        // Optimistic update - immediately add message to UI
+        val currentUserId = getCurrentUserId()
+        val optimisticMessage = Message(
+            senderId = currentUserId ?: "",
+            receiverId = receiverId,
+            content = content.trim(),
+            timestamp = com.google.firebase.Timestamp.now(),
+            isRead = false
+        )
+        
+        val optimisticMessageWithUser = MessageWithUser(
+            message = optimisticMessage,
+            sender = User(id = currentUserId ?: "", username = "You"),
+            isFromCurrentUser = true
+        )
+        
+        // Add to UI immediately
+        val currentMessages = _chatState.value.messages.toMutableList()
+        currentMessages.add(optimisticMessageWithUser)
+        _chatState.value = _chatState.value.copy(messages = currentMessages)
+        
         viewModelScope.launch {
             repository.sendMessage(receiverId, content.trim())
                 .onSuccess { message ->
                     println("ChatViewModel: Message sent successfully: ${message.id}")
-                    // Message will be added through real-time listener
+                    // Message will be updated through real-time listener
                 }
                 .onFailure { exception ->
                     println("ChatViewModel: Failed to send message: ${exception.message}")
+                    // Remove optimistic message on failure
+                    val updatedMessages = _chatState.value.messages.filter { 
+                        it.message.content != content.trim() || !it.isFromCurrentUser 
+                    }
                     _chatState.value = _chatState.value.copy(
+                        messages = updatedMessages,
                         error = exception.message ?: "Mesaj gönderilemedi"
                     )
                 }

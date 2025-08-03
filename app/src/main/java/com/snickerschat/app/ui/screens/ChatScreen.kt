@@ -84,19 +84,6 @@ fun ChatScreen(
         chatViewModel.markAllMessagesAsRead(chatRoomId)
     }
     
-    // Update online status when entering chat
-    LaunchedEffect(Unit) {
-        delay(500) // Wait a bit for auth to be ready
-        chatViewModel.updateOnlineStatus(true)
-    }
-    
-    // Set offline when leaving chat
-    DisposableEffect(Unit) {
-        onDispose {
-            chatViewModel.updateOnlineStatus(false)
-        }
-    }
-    
     // Typing status tracking
     LaunchedEffect(messageText) {
         if (messageText.isNotEmpty()) {
@@ -440,7 +427,7 @@ fun MessageItem(
                             }
                         )
                         
-                        // Debug: Show read status
+                        // Debug: Show read status with different symbols
                         Text(
                             text = if (messageWithUser.message.isRead) "✓✓" else "✓",
                             style = MaterialTheme.typography.labelSmall,
