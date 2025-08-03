@@ -19,6 +19,7 @@ import com.snickerschat.app.ui.viewmodel.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: FirebaseRepository
