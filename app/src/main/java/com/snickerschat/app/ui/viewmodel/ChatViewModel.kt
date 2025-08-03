@@ -142,16 +142,6 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status from Firestore (for lastSeen)
-        viewModelScope.launch {
-            _chatState.value.otherUserId?.let { otherUserId ->
-                repository.getUserFlow(otherUserId).collect { user ->
-                    println("ChatViewModel: Real-time user update from Firestore: ${user.username} lastSeen: ${user.lastSeen}")
-                    _chatState.value = _chatState.value.copy(otherUser = user)
-                }
-            }
-        }
-        
         // Start real-time listener for message read status
         viewModelScope.launch {
             repository.getMessageReadStatusFlow(chatRoomId).collect { readMessages ->
