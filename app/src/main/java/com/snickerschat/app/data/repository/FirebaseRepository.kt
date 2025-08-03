@@ -56,6 +56,25 @@ class FirebaseRepository {
                 lastSeen = com.google.firebase.Timestamp.now()
             )
             usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for new user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect for new user
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - User status initialized in RTDB")
             Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -72,8 +91,31 @@ class FirebaseRepository {
             val user = userDoc.toObject(User::class.java)
             
             if (user != null) {
-                // Update online status
-                updateUserOnlineStatus(true)
+                // Initialize user status in RTDB if not exists
+                println("FirebaseRepository: DEBUG - Checking/initializing user status in RTDB for existing user: $userId")
+                userStatusRef.child(userId).get().await().let { snapshot ->
+                    if (!snapshot.exists()) {
+                        println("FirebaseRepository: DEBUG - User status not found in RTDB, initializing...")
+                        userStatusRef.child(userId).setValue(
+                            mapOf(
+                                "isOnline" to true,
+                                "lastSeen" to null
+                            )
+                        ).await()
+                        
+                        // Set up onDisconnect
+                        userStatusRef.child(userId).onDisconnect().setValue(
+                            mapOf(
+                                "isOnline" to false,
+                                "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                            )
+                        )
+                        println("FirebaseRepository: DEBUG - User status initialized in RTDB")
+                    } else {
+                        println("FirebaseRepository: DEBUG - User status already exists in RTDB, updating to online")
+                        updateUserOnlineStatus(true)
+                    }
+                }
                 Result.success(user)
             } else {
                 Result.failure(Exception("User data not found"))
@@ -115,6 +157,25 @@ class FirebaseRepository {
                 lastSeen = com.google.firebase.Timestamp.now()
             )
             usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for created user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - User status initialized in RTDB")
             Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
