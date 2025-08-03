@@ -313,7 +313,7 @@ fun FriendsScreen(
         }
         
         // Error message
-        if (friendsState.error != null) {
+        friendsState.error?.let { error ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -324,7 +324,7 @@ fun FriendsScreen(
                 )
             ) {
                 Text(
-                    text = friendsState.error,
+                    text = error,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(16.dp),
