@@ -31,6 +31,69 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun signUpWithEmail(email: String, password: String, username: String): Result<User> {
+        return try {
+            // Create user with email/password
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val userId = result.user?.uid ?: throw Exception("Failed to create user")
+            
+            // Create user document in Firestore
+            val user = User(
+                id = userId,
+                username = username,
+                email = email,
+                isOnline = true,
+                lastSeen = com.google.firebase.Timestamp.now()
+            )
+            usersCollection.document(userId).set(user).await()
+            Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun signInWithEmail(email: String, password: String): Result<User> {
+        return try {
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            val userId = result.user?.uid ?: throw Exception("Failed to sign in")
+            
+            // Get user data from Firestore
+            val userDoc = usersCollection.document(userId).get().await()
+            val user = userDoc.toObject(User::class.java)
+            
+            if (user != null) {
+                // Update online status
+                updateUserOnlineStatus(true)
+                Result.success(user)
+            } else {
+                Result.failure(Exception("User data not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun signOut() {
+        try {
+            updateUserOnlineStatus(false)
+            auth.signOut()
+        } catch (e: Exception) {
+            // Handle error
+        }
+    }
+    
+    fun getCurrentUser(): User? {
+        val firebaseUser = auth.currentUser
+        return if (firebaseUser != null) {
+            User(
+                id = firebaseUser.uid,
+                username = "",
+                email = firebaseUser.email ?: "",
+                isOnline = false
+            )
+        } else null
+    }
+    
     suspend fun createUser(username: String): Result<User> {
         return try {
             val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")

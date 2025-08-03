@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,11 +37,14 @@ import com.snickerschat.app.ui.theme.*
 @Composable
 fun LoginScreen(
     loginState: LoginState,
-    onUsernameChanged: (String) -> Unit,
-    onLoginClick: () -> Unit,
+    onSignUp: (String, String, String) -> Unit,
+    onSignIn: (String, String) -> Unit,
     onSignInAnonymously: () -> Unit
 ) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var isSignUp by remember { mutableStateOf(false) }
     val context = LocalContext.current
     
     // Animation states
@@ -184,7 +190,7 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         Text(
-                            text = "Sohbete başlamak için kullanıcı adınızı girin",
+                            text = if (isSignUp) "Hesap oluşturun" else "Hesabınıza giriş yapın",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             textAlign = TextAlign.Center
@@ -192,18 +198,15 @@ fun LoginScreen(
                         
                         Spacer(modifier = Modifier.height(32.dp))
                         
-                        // Username input
+                        // Email input
                         OutlinedTextField(
-                            value = username,
-                            onValueChange = { 
-                                username = it
-                                onUsernameChanged(it)
-                            },
-                            label = { Text(stringResource(R.string.username)) },
-                            placeholder = { Text(stringResource(R.string.enter_username)) },
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("E-posta") },
+                            placeholder = { Text("ornek@email.com") },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Person,
+                                    imageVector = Icons.Default.Email,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -216,18 +219,86 @@ fun LoginScreen(
                                 focusedLabelColor = MaterialTheme.colorScheme.primary
                             ),
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
-                                imeAction = ImeAction.Done
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
                             ),
                             singleLine = true
                         )
                         
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Password input
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Şifre") },
+                            placeholder = { Text("••••••••") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = if (isSignUp) ImeAction.Next else ImeAction.Done
+                            ),
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                        
+                        // Username input (only for sign up)
+                        if (isSignUp) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            OutlinedTextField(
+                                value = username,
+                                onValueChange = { username = it },
+                                label = { Text("Kullanıcı Adı") },
+                                placeholder = { Text("Kullanıcı adınızı girin") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Done
+                                ),
+                                singleLine = true
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        // Login button
+                        // Main action button
                         Button(
-                            onClick = onLoginClick,
-                            enabled = username.trim().isNotEmpty() && !loginState.isLoading,
+                            onClick = {
+                                if (isSignUp) {
+                                    onSignUp(email, password, username)
+                                } else {
+                                    onSignIn(email, password)
+                                }
+                            },
+                            enabled = email.trim().isNotEmpty() && password.trim().isNotEmpty() && 
+                                     (!isSignUp || username.trim().isNotEmpty()) && !loginState.isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
@@ -244,6 +315,65 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
+                                    text = if (isSignUp) "Kayıt Ol" else "Giriş Yap",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Toggle between sign up and sign in
+                        TextButton(
+                            onClick = { isSignUp = !isSignUp }
+                        ) {
+                            Text(
+                                text = if (isSignUp) "Zaten hesabınız var mı? Giriş yapın" else "Hesabınız yok mu? Kayıt olun",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Divider
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Divider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "veya",
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            Divider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Anonymous login button
+                        OutlinedButton(
+                            onClick = onSignInAnonymously,
+                            enabled = !loginState.isLoading,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("Misafir olarak devam et")
+                        }
                                     text = stringResource(R.string.login),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold

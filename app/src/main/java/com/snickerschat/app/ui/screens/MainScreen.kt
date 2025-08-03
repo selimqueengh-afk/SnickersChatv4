@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,7 +31,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 fun MainScreen(
     navController: NavController,
     chatListViewModel: ChatListViewModel,
-    friendsViewModel: FriendsViewModel
+    friendsViewModel: FriendsViewModel,
+    onSignOut: () -> Unit = {}
 ) {
     var selectedScreen by remember { mutableStateOf<Screen>(Screen.Chats) }
     
@@ -83,7 +85,7 @@ fun MainScreen(
                     Screen.Friends -> FriendsScreen(
                         friendsViewModel = friendsViewModel
                     )
-                    Screen.Settings -> SettingsScreen()
+                    Screen.Settings -> SettingsScreen(onSignOut = onSignOut)
                 }
             }
         }
@@ -443,8 +445,11 @@ fun UserItem(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onSignOut: () -> Unit = {}
+) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -456,15 +461,45 @@ fun SettingsScreen() {
             )
         )
         
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = androidx.compose.ui.Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            Text(
-                text = "Ayarlar yakında gelecek!",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Hesap",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = onSignOut,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Çıkış Yap")
+                    }
+                }
+            }
         }
     }
 }

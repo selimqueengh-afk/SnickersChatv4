@@ -50,13 +50,18 @@ fun SnickersChatApp() {
         composable("login") {
             val loginState by authViewModel.loginState.collectAsState()
             
+            // Check if user is already logged in
+            LaunchedEffect(Unit) {
+                authViewModel.checkCurrentUser()
+            }
+            
             LoginScreen(
                 loginState = loginState,
-                onUsernameChanged = { username ->
-                    // Handle username change
+                onSignUp = { email, password, username ->
+                    authViewModel.signUpWithEmail(email, password, username)
                 },
-                onLoginClick = {
-                    authViewModel.createUser("User${System.currentTimeMillis()}")
+                onSignIn = { email, password ->
+                    authViewModel.signInWithEmail(email, password)
                 },
                 onSignInAnonymously = {
                     authViewModel.signInAnonymously()
@@ -77,7 +82,13 @@ fun SnickersChatApp() {
             MainScreen(
                 navController = navController,
                 chatListViewModel = chatListViewModel,
-                friendsViewModel = friendsViewModel
+                friendsViewModel = friendsViewModel,
+                onSignOut = {
+                    authViewModel.signOut()
+                    navController.navigate("login") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                }
             )
         }
         
