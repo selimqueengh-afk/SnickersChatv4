@@ -50,14 +50,24 @@ fun ChatScreen(
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     
     // Get receiver ID from chat room participants
-    val receiverId = remember(chatRoomId, currentUserId) {
-        // This will be set when we load the chat room
-        ""
-    }
+    var receiverId by remember { mutableStateOf("") }
     
     // Get other user info for the header
     val otherUser = remember(chatState.messages) {
         chatState.messages.firstOrNull { !it.isFromCurrentUser }?.sender
+    }
+    
+    // Update receiver ID when messages are loaded
+    LaunchedEffect(chatState.messages) {
+        if (chatState.messages.isNotEmpty()) {
+            val firstMessage = chatState.messages.first()
+            receiverId = if (firstMessage.isFromCurrentUser) {
+                firstMessage.message.receiverId
+            } else {
+                firstMessage.message.senderId
+            }
+            println("ChatScreen: Receiver ID set to: $receiverId")
+        }
     }
     
     LaunchedEffect(chatRoomId) {
@@ -252,39 +262,21 @@ fun ChatScreen(
                 FloatingActionButton(
                     onClick = {
                         if (messageText.trim().isNotEmpty()) {
-                            // Get receiver ID from chat room participants
                             val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                            
-                            // Try to get receiver ID from existing messages first
-                            var receiverId = ""
-                            if (chatState.messages.isNotEmpty()) {
-                                val firstMessage = chatState.messages.first()
-                                receiverId = if (firstMessage.isFromCurrentUser) {
-                                    firstMessage.message.receiverId
-                                } else {
-                                    firstMessage.message.senderId
-                                }
-                            }
-                            
-                            // If no messages exist, we need to get receiver ID from chat room
-                            if (receiverId.isEmpty()) {
-                                // For now, let's try to get it from the chat room ID
-                                // This is a temporary solution
-                                receiverId = chatRoomId // This won't work, we need the actual user ID
-                            }
                             
                             println("Sending message to: $receiverId")
                             println("Current user: $currentUserId")
                             println("Message: ${messageText.trim()}")
                             println("Chat room ID: $chatRoomId")
                             
-                            if (receiverId.isNotEmpty() && receiverId != currentUserId && receiverId != chatRoomId) {
+                            if (receiverId.isNotEmpty() && receiverId != currentUserId) {
                                 chatViewModel.sendMessage(receiverId, messageText.trim())
                                 messageText = ""
                             } else {
                                 println("Invalid receiver ID or same as current user")
-                                // Show error message
-                                chatViewModel.showError("Mesaj gönderilemedi: Geçersiz alıcı")
+                                println("Receiver ID: '$receiverId'")
+                                println("Current User ID: '$currentUserId'")
+                                chatViewModel.showError("Mesaj gönderilemedi: Alıcı bulunamadı")
                             }
                         }
                     },
