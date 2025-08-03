@@ -83,7 +83,7 @@ class ChatListViewModel(
         return _chatListState.value.chatRooms.sumOf { chatRoomWithUser ->
             // TODO: Implement actual unread count from RTDB
             // For now, return 0
-            0
-        }
+            0L
+        }.toInt()
     }
 }
