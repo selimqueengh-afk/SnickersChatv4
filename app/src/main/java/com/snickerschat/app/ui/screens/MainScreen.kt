@@ -90,6 +90,7 @@ fun MainScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatListScreen(
     chatListViewModel: ChatListViewModel,
@@ -228,6 +229,7 @@ fun ChatItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
     friendsViewModel: FriendsViewModel
@@ -440,6 +442,7 @@ fun UserItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
     Column(
