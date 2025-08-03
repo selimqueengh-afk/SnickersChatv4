@@ -530,16 +530,25 @@ class FirebaseRepository {
                     for (child in snapshot.children) {
                         val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
                         if (messageData != null) {
-                            val message = Message(
-                                id = messageData["id"] as? String ?: "",
-                                senderId = messageData["senderId"] as? String ?: "",
-                                receiverId = messageData["receiverId"] as? String ?: "",
-                                content = messageData["content"] as? String ?: "",
-                                timestamp = com.google.firebase.Timestamp.now(), // Convert from long
-                                isRead = messageData["isRead"] as? Boolean ?: false,
-                                chatRoomId = messageData["chatRoomId"] as? String ?: ""
-                            )
-                            messages.add(message)
+                            val id = messageData["id"] as? String
+                            val senderId = messageData["senderId"] as? String
+                            val receiverId = messageData["receiverId"] as? String
+                            val content = messageData["content"] as? String
+                            val chatRoomId = messageData["chatRoomId"] as? String
+                            
+                            // Only create message if all required fields are present
+                            if (id != null && senderId != null && receiverId != null && content != null && chatRoomId != null) {
+                                val message = Message(
+                                    id = id,
+                                    senderId = senderId,
+                                    receiverId = receiverId,
+                                    content = content,
+                                    timestamp = com.google.firebase.Timestamp.now(), // Convert from long
+                                    isRead = messageData["isRead"] as? Boolean ?: false,
+                                    chatRoomId = chatRoomId
+                                )
+                                messages.add(message)
+                            }
                         }
                     }
                     
