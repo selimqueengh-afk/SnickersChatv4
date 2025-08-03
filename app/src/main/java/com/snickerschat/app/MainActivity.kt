@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Initialize Cloudinary
-        CloudinaryConfig.init()
+        CloudinaryConfig.init(this)
         
         repository = FirebaseRepository()
         
