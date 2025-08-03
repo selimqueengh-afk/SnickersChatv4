@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Set user as online when app becomes active
+        println("MainActivity: onResume - setting user as online")
         scope.launch {
             repository.updateUserOnlineStatus(true)
         }
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         // Set user as offline when app goes to background
+        println("MainActivity: onPause - setting user as offline")
         scope.launch {
             repository.updateUserOnlineStatus(false)
         }
@@ -60,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         // Set user as offline when app is destroyed
+        println("MainActivity: onDestroy - setting user as offline")
         scope.launch {
             repository.updateUserOnlineStatus(false)
         }
