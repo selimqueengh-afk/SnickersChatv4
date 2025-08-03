@@ -564,7 +564,7 @@ fun ChatScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = replyingToMessage?.user?.username ?: "",
+                            text = replyingToMessage?.sender?.username ?: "",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -643,7 +643,7 @@ fun ChatScreen(
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
                                 // Send message with reply reference
                                 val finalMessage = if (replyingToMessage != null) {
-                                    "↩️ ${replyingToMessage?.user?.username}: ${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
+                                    "↩️ ${replyingToMessage?.sender?.username}: ${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
                                 } else {
                                     messageText.trim()
                                 }
