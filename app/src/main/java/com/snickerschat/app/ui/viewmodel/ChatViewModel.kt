@@ -125,7 +125,7 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
+        // Start real-time listener for other user's online status from RTDB
         viewModelScope.launch {
             _chatState.value.otherUserId?.let { otherUserId ->
                 println("ChatViewModel: Starting online status listener for user: $otherUserId")
@@ -138,6 +138,16 @@ class ChatViewModel(
                         )
                         println("ChatViewModel: Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline")
                     }
+                }
+            }
+        }
+        
+        // Start real-time listener for other user's online status from Firestore (for lastSeen)
+        viewModelScope.launch {
+            _chatState.value.otherUserId?.let { otherUserId ->
+                repository.getUserFlow(otherUserId).collect { user ->
+                    println("ChatViewModel: Real-time user update from Firestore: ${user.username} lastSeen: ${user.lastSeen}")
+                    _chatState.value = _chatState.value.copy(otherUser = user)
                 }
             }
         }
@@ -204,6 +214,9 @@ class ChatViewModel(
         val currentMessages = _chatState.value.messages.toMutableList()
         currentMessages.add(optimisticMessageWithUser)
         _chatState.value = _chatState.value.copy(messages = currentMessages)
+        
+        // Clear input immediately
+        // messageText = "" // This will be handled by the UI
         
         viewModelScope.launch {
             repository.sendMessage(receiverId, content.trim())
