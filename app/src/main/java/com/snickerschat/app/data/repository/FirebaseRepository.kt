@@ -503,6 +503,30 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun deleteMessage(messageId: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            
+            println("FirebaseRepository: Deleting message: $messageId")
+            
+            // Delete from Firestore
+            messagesCollection.document(messageId).delete().await()
+            
+            // Delete from RTDB
+            messageReadRef.orderByChild("id").equalTo(messageId).get().await().let { snapshot ->
+                for (child in snapshot.children) {
+                    child.ref.removeValue().await()
+                }
+            }
+            
+            println("FirebaseRepository: Message deleted successfully from both Firestore and RTDB")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error deleting message: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
     suspend fun markAllMessagesAsRead(chatRoomId: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")

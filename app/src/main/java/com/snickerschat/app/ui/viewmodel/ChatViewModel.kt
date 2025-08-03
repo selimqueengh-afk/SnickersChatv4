@@ -318,6 +318,22 @@ class ChatViewModel(
         _chatState.value = _chatState.value.copy(error = null)
     }
     
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            repository.deleteMessage(messageId)
+                .onSuccess {
+                    println("ChatViewModel: Message deleted successfully: $messageId")
+                    // Message will be removed from UI through real-time listener
+                }
+                .onFailure { exception ->
+                    println("ChatViewModel: Failed to delete message: ${exception.message}")
+                    _chatState.value = _chatState.value.copy(
+                        error = "Mesaj silinemedi: ${exception.message}"
+                    )
+                }
+        }
+    }
+    
     private fun getCurrentUserId(): String? {
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     }

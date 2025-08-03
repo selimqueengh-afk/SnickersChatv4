@@ -414,14 +414,32 @@ fun ChatScreen(
                         items = chatState.messages,
                         key = { it.message.id }
                     ) { messageWithUser ->
-                        MessageItem(
-                            messageWithUser = messageWithUser,
-                            onLongClick = {
-                                // Show message options
-                                showMessageOptionsDialog = true
-                                selectedMessageForOptions = messageWithUser
-                            }
-                        )
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
+                                animationSpec = tween(durationMillis = 400, easing = EaseOutBack)
+                            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                            exit = slideOutHorizontally(
+                                targetOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
+                                animationSpec = tween(durationMillis = 300)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 200)),
+                            modifier = Modifier.animateItemPlacement(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        ) {
+                            MessageItem(
+                                messageWithUser = messageWithUser,
+                                onLongClick = {
+                                    // Show message options
+                                    showMessageOptionsDialog = true
+                                    selectedMessageForOptions = messageWithUser
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -563,79 +581,162 @@ fun ChatScreen(
         }
     }
     
-    // Message Options Dialog
+    // Modern Message Options Dialog
     if (showMessageOptionsDialog) {
-        AlertDialog(
-            onDismissRequest = { showMessageOptionsDialog = false },
-            title = { Text("Mesaj Seçenekleri") },
-            text = { Text("Bu mesaj için ne yapmak istiyorsunuz?") },
-            confirmButton = {
-                Column {
-                    // Copy message
-                    TextButton(
-                        onClick = {
-                            selectedMessageForOptions?.let { messageWithUser ->
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("Mesaj", messageWithUser.message.content)
-                                clipboard.setPrimaryClip(clip)
-                                chatViewModel.showError("Mesaj kopyalandı!")
-                            }
-                            showMessageOptionsDialog = false
-                            selectedMessageForOptions = null
-                        }
-                    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Backdrop
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { showMessageOptionsDialog = false }
+            )
+            
+            // Modern Options Card
+            Card(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .widthIn(max = 300.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Header
+                    Text(
+                        text = "Mesaj Seçenekleri",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    // Copy option
+                    selectedMessageForOptions?.let { messageWithUser ->
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Mesaj", messageWithUser.message.content)
+                                    clipboard.setPrimaryClip(clip)
+                                    chatViewModel.showError("Mesaj kopyalandı!")
+                                    showMessageOptionsDialog = false
+                                    selectedMessageForOptions = null
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
                                 contentDescription = "Kopyala",
-                                modifier = Modifier.size(16.dp)
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
                             )
-                            Text("Kopyala")
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Kopyala",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
-                    }
-                    
-                    // Delete message (only for own messages)
-                    selectedMessageForOptions?.let { messageWithUser ->
-                        if (messageWithUser.isFromCurrentUser) {
-                            TextButton(
-                                onClick = {
+                        
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        
+                        // Reply option
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    // TODO: Implement reply feature
+                                    chatViewModel.showError("Yanıtlama özelliği yakında eklenecek!")
                                     showMessageOptionsDialog = false
-                                    showDeleteDialog = true
-                                    selectedMessageForDelete = messageWithUser.message.id
                                     selectedMessageForOptions = null
                                 }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Sil",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                    Text("Sil", color = MaterialTheme.colorScheme.error)
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Reply,
+                                contentDescription = "Yanıtla",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Yanıtla",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        
+                        // React option
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    // TODO: Implement reaction feature
+                                    chatViewModel.showError("Tepki özelliği yakında eklenecek!")
+                                    showMessageOptionsDialog = false
+                                    selectedMessageForOptions = null
                                 }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Tepki Ver",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Tepki Ver",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        
+                        // Delete option (only for own messages)
+                        if (messageWithUser.isFromCurrentUser) {
+                            Divider(modifier = Modifier.padding(vertical = 8.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showMessageOptionsDialog = false
+                                        showDeleteDialog = true
+                                        selectedMessageForDelete = messageWithUser.message.id
+                                        selectedMessageForOptions = null
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Sil",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Sil",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showMessageOptionsDialog = false
-                        selectedMessageForOptions = null
-                    }
-                ) {
-                    Text("İptal")
-                }
             }
-        )
+        }
     }
     
     // Delete Confirmation Dialog
@@ -648,9 +749,9 @@ fun ChatScreen(
                 TextButton(
                     onClick = {
                         selectedMessageForDelete?.let { messageId ->
-                            // TODO: Implement message deletion in ViewModel
+                            // Delete message from ViewModel
+                            chatViewModel.deleteMessage(messageId)
                             println("Delete message: $messageId")
-                            chatViewModel.showError("Mesaj silme özelliği yakında eklenecek!")
                         }
                         showDeleteDialog = false
                         selectedMessageForDelete = null
@@ -695,8 +796,16 @@ fun MessageItem(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onLongPress = { onLongClick() },
-                        onPress = { /* Handle normal tap */ }
+                        onPress = { 
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        }
                     )
+                }
+                .graphicsLayer {
+                    scaleX = if (isPressed) 0.95f else 1f
+                    scaleY = if (isPressed) 0.95f else 1f
                 }
                 .animateContentSize(
                     animationSpec = spring(
