@@ -64,6 +64,18 @@ fun ChatScreen(
     
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
+        // Mark all messages as read when entering chat
+        chatViewModel.markAllMessagesAsRead(chatRoomId)
+    }
+    
+    // Update online status when entering/leaving chat
+    LaunchedEffect(Unit) {
+        chatViewModel.updateOnlineStatus(true)
+        
+        // Set offline when leaving
+        onDispose {
+            chatViewModel.updateOnlineStatus(false)
+        }
     }
     
     LaunchedEffect(chatState.messages.size) {
@@ -88,7 +100,21 @@ fun ChatScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = if (otherUser.isOnline) "Çevrimiçi" else "Çevrimdışı",
+                            text = if (otherUser.isOnline) {
+                                "Çevrimiçi"
+                            } else {
+                                otherUser.lastSeen?.let { lastSeen ->
+                                    val now = com.google.firebase.Timestamp.now()
+                                    val diffInSeconds = now.seconds - lastSeen.seconds
+                                    
+                                    when {
+                                        diffInSeconds < 60 -> "Az önce"
+                                        diffInSeconds < 3600 -> "${diffInSeconds / 60} dakika önce"
+                                        diffInSeconds < 86400 -> "${diffInSeconds / 3600} saat önce"
+                                        else -> "${diffInSeconds / 86400} gün önce"
+                                    }
+                                } ?: "Çevrimdışı"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )

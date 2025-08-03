@@ -393,7 +393,58 @@ class FirebaseRepository {
     
     suspend fun markMessageAsRead(messageId: String): Result<Unit> {
         return try {
-            messagesCollection.document(messageId).update("isRead", true).await()
+            val now = com.google.firebase.Timestamp.now()
+            messagesCollection.document(messageId).update(
+                mapOf(
+                    "isRead" to true,
+                    "readAt" to now
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun markAllMessagesAsRead(chatRoomId: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            val now = com.google.firebase.Timestamp.now()
+            
+            val messagesSnapshot = messagesCollection
+                .whereEqualTo("chatRoomId", chatRoomId)
+                .whereEqualTo("receiverId", currentUserId)
+                .whereEqualTo("isRead", false)
+                .get()
+                .await()
+            
+            for (messageDoc in messagesSnapshot.documents) {
+                messageDoc.reference.update(
+                    mapOf(
+                        "isRead" to true,
+                        "readAt" to now
+                    )
+                ).await()
+            }
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun updateUserOnlineStatus(isOnline: Boolean): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            val now = com.google.firebase.Timestamp.now()
+            
+            usersCollection.document(currentUserId).update(
+                mapOf(
+                    "isOnline" to isOnline,
+                    "lastSeen" to if (isOnline) null else now
+                )
+            ).await()
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

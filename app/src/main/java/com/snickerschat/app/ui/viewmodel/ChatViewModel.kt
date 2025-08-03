@@ -139,6 +139,18 @@ class ChatViewModel(
         }
     }
     
+    fun markAllMessagesAsRead(chatRoomId: String) {
+        viewModelScope.launch {
+            repository.markAllMessagesAsRead(chatRoomId)
+        }
+    }
+    
+    fun updateOnlineStatus(isOnline: Boolean) {
+        viewModelScope.launch {
+            repository.updateUserOnlineStatus(isOnline)
+        }
+    }
+    
     fun showError(message: String) {
         _chatState.value = _chatState.value.copy(error = message)
     }
