@@ -3,6 +3,7 @@ package com.snickerschat.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1006,6 +1007,47 @@ fun ChatScreen(
 }
 
 @Composable
+fun AnimatedReactionEmoji(
+    emoji: String,
+    modifier: Modifier = Modifier
+) {
+    var isAnimating by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(emoji) {
+        // Trigger animation when emoji is added
+        isAnimating = true
+        delay(300) // Animation duration
+        isAnimating = false
+    }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isAnimating) 1.5f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "emoji_scale"
+    )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (isAnimating) 1f else 0.8f,
+        animationSpec = tween(durationMillis = 300),
+        label = "emoji_alpha"
+    )
+    
+    Text(
+        text = emoji,
+        fontSize = 12.sp,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+    )
+}
+
+@Composable
 fun MessageItem(
     messageWithUser: MessageWithUser,
     onLongClick: () -> Unit,
@@ -1271,7 +1313,7 @@ fun MessageItem(
             }
         }
         
-        // Reaction display (WhatsApp style)
+        // Reaction display (WhatsApp style with animation)
         if (messageWithUser.message.reactions?.isNotEmpty() == true) {
             Row(
                 modifier = Modifier
@@ -1280,9 +1322,8 @@ fun MessageItem(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 messageWithUser.message.reactions?.forEach { reaction ->
-                    Text(
-                        text = reaction,
-                        fontSize = 12.sp,
+                    AnimatedReactionEmoji(
+                        emoji = reaction,
                         modifier = Modifier
                             .background(
                                 color = MaterialTheme.colorScheme.surfaceVariant,

@@ -518,11 +518,22 @@ class FirebaseRepository {
                 println("FirebaseRepository: Deleted message from Firestore: ${document.id}")
             }
             
-            // Delete from RTDB
-            messageReadRef.orderByChild("id").equalTo(messageId).get().await().let { snapshot ->
-                for (child in snapshot.children) {
-                    child.ref.removeValue().await()
-                    println("FirebaseRepository: Deleted message from RTDB: ${child.key}")
+            // Delete from RTDB - we need to find the chatRoomId first
+            // Get all chat rooms for current user
+            val chatRoomsQuery = chatRoomsCollection.whereArrayContains("participants", currentUserId)
+            val chatRoomsSnapshot = chatRoomsQuery.get().await()
+            
+            for (chatRoomDoc in chatRoomsSnapshot.documents) {
+                val chatRoomId = chatRoomDoc.id
+                println("FirebaseRepository: Checking chat room: $chatRoomId")
+                
+                // Check if message exists in this chat room
+                val messageSnapshot = messageReadRef.child(chatRoomId).child(messageId).get().await()
+                if (messageSnapshot.exists()) {
+                    println("FirebaseRepository: Found message in RTDB chat room: $chatRoomId")
+                    messageReadRef.child(chatRoomId).child(messageId).removeValue().await()
+                    println("FirebaseRepository: Deleted message from RTDB: $messageId in chat: $chatRoomId")
+                    break // Found and deleted, no need to check other chat rooms
                 }
             }
             
@@ -556,18 +567,29 @@ class FirebaseRepository {
                 println("FirebaseRepository: Updated reactions in Firestore: $updatedReactions")
             }
             
-            // Update in RTDB
-            messageReadRef.orderByChild("id").equalTo(messageId).get().await().let { snapshot ->
-                for (child in snapshot.children) {
-                    val currentReactions = child.child("reactions").getValue(object : com.google.firebase.database.GenericTypeIndicator<List<String>>() {}) ?: emptyList()
+            // Update in RTDB - we need to find the chatRoomId first
+            val chatRoomsQuery = chatRoomsCollection.whereArrayContains("participants", currentUserId)
+            val chatRoomsSnapshot = chatRoomsQuery.get().await()
+            
+            for (chatRoomDoc in chatRoomsSnapshot.documents) {
+                val chatRoomId = chatRoomDoc.id
+                println("FirebaseRepository: Checking chat room for reaction: $chatRoomId")
+                
+                // Check if message exists in this chat room
+                val messageSnapshot = messageReadRef.child(chatRoomId).child(messageId).get().await()
+                if (messageSnapshot.exists()) {
+                    println("FirebaseRepository: Found message in RTDB chat room: $chatRoomId")
+                    
+                    val currentReactions = messageSnapshot.child("reactions").getValue(object : com.google.firebase.database.GenericTypeIndicator<List<String>>() {}) ?: emptyList()
                     val updatedReactions = if (currentReactions.contains(emoji)) {
                         currentReactions - emoji
                     } else {
                         currentReactions + emoji
                     }
                     
-                    child.child("reactions").ref.setValue(updatedReactions).await()
+                    messageReadRef.child(chatRoomId).child(messageId).child("reactions").ref.setValue(updatedReactions).await()
                     println("FirebaseRepository: Updated reactions in RTDB: $updatedReactions")
+                    break // Found and updated, no need to check other chat rooms
                 }
             }
             
