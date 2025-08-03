@@ -6,10 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
-import androidx.compose.material3.SwipeToDismiss
-import androidx.compose.material3.rememberDismissState
+
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -410,12 +407,8 @@ fun ChatScreen(
                         items = chatState.messages,
                         key = { it.message.id }
                     ) { messageWithUser ->
-                        SwipeToDeleteItem(
+                        MessageItem(
                             messageWithUser = messageWithUser,
-                            onDelete = {
-                                // TODO: Implement message deletion
-                                println("Delete message: ${messageWithUser.message.id}")
-                            },
                             onLongClick = {
                                 // TODO: Show message options (copy, edit, reply)
                                 println("Long click message: ${messageWithUser.message.id}")
@@ -687,56 +680,3 @@ fun MessageItem(
     }
 }
 
-@Composable
-fun SwipeToDeleteItem(
-    messageWithUser: MessageWithUser,
-    onDelete: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    val dismissState = rememberDismissState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == DismissValue.DismissedToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        }
-    )
-    
-    SwipeToDismiss(
-        state = dismissState,
-        background = {
-            val direction = dismissState.dismissDirection
-            val color by animateColorAsState(
-                targetValue = when (direction) {
-                    DismissDirection.StartToEnd -> Color.Transparent
-                    DismissDirection.EndToStart -> Color.Red
-                    null -> Color.Transparent
-                },
-                label = "color"
-            )
-            val alignment = Alignment.CenterEnd
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = alignment
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Sil",
-                    tint = Color.White
-                )
-            }
-        },
-        dismissContent = {
-            MessageItem(
-                messageWithUser = messageWithUser,
-                onLongClick = onLongClick
-            )
-        },
-        directions = setOf(DismissDirection.EndToStart)
-    )
-}
