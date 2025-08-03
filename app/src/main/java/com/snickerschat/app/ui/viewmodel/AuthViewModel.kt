@@ -21,7 +21,7 @@ class AuthViewModel(
             _loginState.value = _loginState.value.copy(isLoading = true, error = null)
             
             repository.signInAnonymously()
-                .onSuccess { userId ->
+                .onSuccess { _ ->
                     _loginState.value = _loginState.value.copy(
                         isLoading = false,
                         isLoggedIn = true

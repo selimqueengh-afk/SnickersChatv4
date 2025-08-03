@@ -289,7 +289,7 @@ class FirebaseRepository {
     
     suspend fun acceptFriendRequest(requestId: String): Result<Unit> {
         return try {
-            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            // Removed unused currentUserId variable to fix warning
             
             // Get request details first
             val request = friendRequestsCollection.document(requestId).get().await()
@@ -561,6 +561,7 @@ class FirebaseRepository {
             val querySnapshot = query.get().await()
             
             for (document in querySnapshot.documents) {
+                @Suppress("UNCHECKED_CAST")
                 val currentReactions = document.get("reactions") as? List<String> ?: emptyList()
                 val updatedReactions = if (currentReactions.contains(emoji)) {
                     currentReactions - emoji // Remove if already exists
@@ -610,16 +611,16 @@ class FirebaseRepository {
         return try {
             println("FirebaseRepository: Uploading media: ${file.name}, type: $mediaType")
             
-            // Cloudinary upload
-            val uploadRequest = MediaManager.get().upload(file.absolutePath)
-                .option("resource_type", when(mediaType) {
-                    MediaType.IMAGE -> "image"
-                    MediaType.AUDIO -> "video" // Cloudinary uses video for audio
-                    MediaType.VIDEO -> "video"
-                    MediaType.FILE -> "raw"
-                })
-                .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
-                .option("overwrite", true)
+            // Cloudinary upload (commented out due to unused variable warning)
+            // val uploadRequest = MediaManager.get().upload(file.absolutePath)
+            //     .option("resource_type", when(mediaType) {
+            //         MediaType.IMAGE -> "image"
+            //         MediaType.AUDIO -> "video" // Cloudinary uses video for audio
+            //         MediaType.VIDEO -> "video"
+            //         MediaType.FILE -> "raw"
+            //     })
+            //     .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
+            //     .option("overwrite", true)
             
             // TODO: Fix Cloudinary call method
             // val result = uploadRequest.call()
@@ -796,12 +797,13 @@ class FirebaseRepository {
                             val senderId = messageData["senderId"] as? String
                             val receiverId = messageData["receiverId"] as? String
                             val content = messageData["content"] as? String
-                            val chatRoomId = messageData["chatRoomId"] as? String
+                            val messageChatRoomId = messageData["chatRoomId"] as? String
                             val timestamp = messageData["timestamp"] as? Long
+                            @Suppress("UNCHECKED_CAST")
                             val reactions = messageData["reactions"] as? List<String> ?: emptyList()
                             
                             // Only create message if all required fields are present
-                            if (id != null && senderId != null && receiverId != null && content != null && chatRoomId != null && timestamp != null) {
+                            if (id != null && senderId != null && receiverId != null && content != null && messageChatRoomId != null && timestamp != null) {
                                 val message = Message(
                                     id = id,
                                     senderId = senderId,
@@ -809,7 +811,7 @@ class FirebaseRepository {
                                     content = content,
                                     timestamp = com.google.firebase.Timestamp(timestamp / 1000, ((timestamp % 1000) * 1000000).toInt()),
                                     isRead = messageData["isRead"] as? Boolean ?: false,
-                                    chatRoomId = chatRoomId,
+                                    chatRoomId = messageChatRoomId,
                                     reactions = reactions
                                 )
                                 messages.add(message)

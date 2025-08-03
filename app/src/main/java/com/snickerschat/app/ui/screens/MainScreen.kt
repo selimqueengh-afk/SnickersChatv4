@@ -90,7 +90,7 @@ fun MainScreen(
                         if (targetState.route > initialState.route) fullWidth else -fullWidth
                     } + fadeIn(
                         animationSpec = tween(300)
-                    ) with slideOutHorizontally(
+                    ) togetherWith slideOutHorizontally(
                         animationSpec = tween(300, easing = EaseInOut)
                     ) { fullWidth ->
                         if (targetState.route > initialState.route) -fullWidth else fullWidth

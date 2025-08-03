@@ -80,7 +80,7 @@ class ChatListViewModel(
     
     fun getUnreadMessageCount(): Int {
         // Calculate total unread messages from all chat rooms
-        return _chatListState.value.chatRooms.sumOf { chatRoomWithUser ->
+        return _chatListState.value.chatRooms.sumOf { _ ->
             // TODO: Implement actual unread count from RTDB
             // For now, return 0
             0L

@@ -72,8 +72,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
-    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-    val scope = rememberCoroutineScope()
+    // Removed unused variables to fix warnings
     
     // Reply state
     var replyingToMessage by remember { mutableStateOf<MessageWithUser?>(null) }
@@ -112,12 +111,7 @@ fun ChatScreen(
     var audioRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
     var audioFile by remember { mutableStateOf<File?>(null) }
     
-    val audioRecorderLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        // TODO: Handle audio recording
-        chatViewModel.showError("Sesli mesaj yakında eklenecek!")
-    }
+    // Removed unused audioRecorderLauncher to fix warnings
     
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -134,7 +128,7 @@ fun ChatScreen(
     fun startAudioRecording() {
         try {
             audioFile = File.createTempFile("audio_", ".mp3", context.cacheDir)
-            audioRecorder = MediaRecorder().apply {
+            audioRecorder = MediaRecorder(context).apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
@@ -1385,7 +1379,7 @@ fun MessageItem(
                         onDragCancel = { },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            val (x, y) = dragAmount
+                            val (x, _) = dragAmount
                             // Swipe left to reply (for received messages)
                             if (!isFromCurrentUser && x < -50) {
                                 onReply()
@@ -1431,7 +1425,6 @@ fun MessageItem(
                     if (replyParts.size >= 2) {
                         val replyInfo = replyParts[0].removePrefix("REPLY_TO:").split(":")
                         if (replyInfo.size >= 3) {
-                            val replyId = replyInfo[0]
                             val replyUsername = replyInfo[1]
                             val replyContent = replyInfo[2]
                             
@@ -1620,7 +1613,7 @@ fun MessageItem(
                     .align(if (isFromCurrentUser) Alignment.End else Alignment.Start),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                messageWithUser.message.reactions?.forEach { reaction ->
+                messageWithUser.message.reactions!!.forEach { reaction ->
                     AnimatedReactionEmoji(
                         emoji = reaction,
                         modifier = Modifier

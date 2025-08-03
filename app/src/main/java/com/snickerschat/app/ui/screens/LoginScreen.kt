@@ -43,7 +43,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var isSignUp by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    // Removed unused context variable to fix warning
     
     // Animation states
     val infiniteTransition = rememberInfiniteTransition()

@@ -217,7 +217,7 @@ class ChatViewModel(
             repository.getTypingStatusFlow(chatRoomId).collect { typingUsers ->
                 println("ChatViewModel: Real-time typing status update: $typingUsers")
                 val currentUserId = getCurrentUserId()
-                val otherUserId = _chatState.value.otherUserId
+                // Removed unused otherUserId variable to fix warning
                 
                 // Filter out current user's typing status
                 val otherUserTyping = typingUsers.any { (userId, isTyping) ->
@@ -378,7 +378,7 @@ class ChatViewModel(
         }
     }
     
-    private fun sendMessageWithMedia(content: String, mediaUrl: String, mediaType: MediaType) {
+    private fun sendMessageWithMedia(content: String, mediaUrl: String, _: MediaType) {
         viewModelScope.launch {
             try {
                 val receiverId = _chatState.value.otherUserId
