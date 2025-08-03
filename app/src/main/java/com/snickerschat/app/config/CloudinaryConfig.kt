@@ -5,9 +5,9 @@ import com.cloudinary.android.MediaManager
 
 object CloudinaryConfig {
     
-    private const val CLOUD_NAME = "your_cloud_name" // Cloudinary cloud name - BURAYA CLOUD NAME'İNİ YAZ
-    private const val API_KEY = "your_api_key" // Cloudinary API key - BURAYA API KEY'İNİ YAZ
-    private const val API_SECRET = "your_api_secret" // Cloudinary API secret - BURAYA API SECRET'INI YAZ
+    private const val CLOUD_NAME = "dedz2kgln"
+    private const val API_KEY = "934616664355316"
+    private const val API_SECRET = "ejpJuQ9pIY9ueCmCNvZAwQ4jWho"
     
     fun init() {
         val config = HashMap<String, String>()
