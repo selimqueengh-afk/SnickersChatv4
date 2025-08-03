@@ -125,16 +125,6 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status
-        viewModelScope.launch {
-            _chatState.value.otherUserId?.let { otherUserId ->
-                repository.getUserFlow(otherUserId).collect { user ->
-                    println("ChatViewModel: Real-time user update: ${user.username} isOnline: ${user.isOnline}")
-                    _chatState.value = _chatState.value.copy(otherUser = user)
-                }
-            }
-        }
-        
         // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
         viewModelScope.launch {
             _chatState.value.otherUserId?.let { otherUserId ->
@@ -149,6 +139,24 @@ class ChatViewModel(
                         println("ChatViewModel: Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline")
                     }
                 }
+            }
+        }
+        
+        // Start real-time listener for message read status
+        viewModelScope.launch {
+            repository.getMessageReadStatusFlow(chatRoomId).collect { readMessages ->
+                println("ChatViewModel: Real-time message read status update: $readMessages")
+                
+                // Update messages with read status
+                val updatedMessages = _chatState.value.messages.map { messageWithUser ->
+                    val isRead = readMessages[messageWithUser.message.id] ?: messageWithUser.message.isRead
+                    println("ChatViewModel: Message ${messageWithUser.message.id} read status: $isRead")
+                    messageWithUser.copy(
+                        message = messageWithUser.message.copy(isRead = isRead)
+                    )
+                }
+                
+                _chatState.value = _chatState.value.copy(messages = updatedMessages)
             }
         }
         
@@ -167,23 +175,6 @@ class ChatViewModel(
                 _chatState.value = _chatState.value.copy(
                     isOtherUserTyping = otherUserTyping
                 )
-            }
-        }
-        
-        // Start real-time listener for message read status
-        viewModelScope.launch {
-            repository.getMessageReadStatusFlow(chatRoomId).collect { readMessages ->
-                println("ChatViewModel: Real-time message read status update: $readMessages")
-                
-                // Update messages with read status
-                val updatedMessages = _chatState.value.messages.map { messageWithUser ->
-                    val isRead = readMessages[messageWithUser.message.id] ?: messageWithUser.message.isRead
-                    messageWithUser.copy(
-                        message = messageWithUser.message.copy(isRead = isRead)
-                    )
-                }
-                
-                _chatState.value = _chatState.value.copy(messages = updatedMessages)
             }
         }
     }

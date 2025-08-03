@@ -80,7 +80,7 @@ fun ChatScreen(
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
         // Mark all messages as read when entering chat
-        delay(2000) // Wait a bit more for messages to load
+        delay(1000) // Wait a bit for messages to load
         chatViewModel.markAllMessagesAsRead(chatRoomId)
     }
     

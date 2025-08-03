@@ -373,7 +373,7 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Message saved with ID: ${savedMessage.id}")
             
-            // Update chat room
+            // Update chat room immediately
             chatRoomsCollection.document(chatRoomId).update(
                 mapOf(
                     "lastMessage" to content,
@@ -383,6 +383,20 @@ class FirebaseRepository {
             ).await()
             
             println("FirebaseRepository: Chat room updated successfully")
+            
+            // Also update in RTDB for faster real-time sync
+            messageReadRef.child(chatRoomId).child(savedMessage.id).setValue(
+                mapOf(
+                    "messageId" to savedMessage.id,
+                    "senderId" to senderId,
+                    "receiverId" to receiverId,
+                    "content" to content,
+                    "timestamp" to System.currentTimeMillis(),
+                    "isRead" to false
+                )
+            ).await()
+            
+            println("FirebaseRepository: Message also saved to RTDB for real-time sync")
             Result.success(savedMessage)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
@@ -429,6 +443,8 @@ class FirebaseRepository {
                 
                 // Only mark as read if current user is the receiver
                 if (message?.receiverId == currentUserId) {
+                    println("FirebaseRepository: Marking message $messageId as read")
+                    
                     // Update in Firestore
                     messageDoc.reference.update(
                         mapOf(
@@ -442,7 +458,8 @@ class FirebaseRepository {
                         mapOf(
                             "readBy" to currentUserId,
                             "readAt" to nowMillis,
-                            "timestamp" to nowMillis
+                            "timestamp" to nowMillis,
+                            "isRead" to true
                         )
                     ).await()
                     
@@ -632,13 +649,23 @@ class FirebaseRepository {
         val listener = onlineStatusRef.child(userId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                    val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
-                    println("FirebaseRepository: Online status changed for user $userId: $isOnline")
-                    trySend(isOnline)
+                    println("FirebaseRepository: Online status data changed for user $userId")
+                    println("FirebaseRepository: Snapshot exists: ${snapshot.exists()}")
+                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    
+                    if (snapshot.exists()) {
+                        val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                        println("FirebaseRepository: Online status changed for user $userId: $isOnline")
+                        trySend(isOnline)
+                    } else {
+                        println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
+                        trySend(false)
+                    }
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                     println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
+                    trySend(false)
                 }
             }
         )
@@ -650,26 +677,37 @@ class FirebaseRepository {
     }
     
     fun getMessageReadStatusFlow(chatRoomId: String): Flow<Map<String, Boolean>> = callbackFlow {
+        println("FirebaseRepository: Starting message read status listener for chat: $chatRoomId")
         val listener = messageReadRef.child(chatRoomId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    println("FirebaseRepository: Message read status data changed for chat $chatRoomId")
+                    println("FirebaseRepository: Snapshot exists: ${snapshot.exists()}")
+                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    
                     val readMessages = mutableMapOf<String, Boolean>()
                     for (child in snapshot.children) {
                         val messageId = child.key
                         val readBy = child.child("readBy").getValue(String::class.java)
+                        println("FirebaseRepository: Message $messageId read by: $readBy")
                         if (messageId != null && readBy != null) {
                             readMessages[messageId] = true
                         }
                     }
+                    println("FirebaseRepository: Read messages: $readMessages")
                     trySend(readMessages)
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                    // Handle error
+                    println("FirebaseRepository: Message read status listener cancelled for chat $chatRoomId: ${error.message}")
+                    trySend(emptyMap())
                 }
             }
         )
         
-        awaitClose { messageReadRef.child(chatRoomId).removeEventListener(listener) }
+        awaitClose { 
+            println("FirebaseRepository: Removing message read status listener for chat: $chatRoomId")
+            messageReadRef.child(chatRoomId).removeEventListener(listener) 
+        }
     }
 }
