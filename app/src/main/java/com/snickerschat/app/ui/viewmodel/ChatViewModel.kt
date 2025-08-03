@@ -3,6 +3,7 @@ package com.snickerschat.app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snickerschat.app.data.repository.FirebaseRepository
+import com.snickerschat.app.data.model.User
 import com.snickerschat.app.ui.state.ChatState
 import com.snickerschat.app.ui.state.MessageWithUser
 import kotlinx.coroutines.flow.MutableStateFlow
