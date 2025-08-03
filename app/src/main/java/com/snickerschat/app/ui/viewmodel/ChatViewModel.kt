@@ -128,24 +128,37 @@ class ChatViewModel(
         // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
         viewModelScope.launch {
             _chatState.value.otherUserId?.let { otherUserId ->
-                println("ChatViewModel: Starting online status listener for user: $otherUserId")
-                println("ChatViewModel: Current user: ${getCurrentUserId()}")
-                println("ChatViewModel: Other user ID: $otherUserId")
+                println("ChatViewModel: DEBUG - Starting online status listener for user: $otherUserId")
+                println("ChatViewModel: DEBUG - Current user: ${getCurrentUserId()}")
+                println("ChatViewModel: DEBUG - Other user ID: $otherUserId")
                 
                 repository.getOnlineStatusFlow(otherUserId).collect { statusData ->
                     val isOnline = statusData["isOnline"] as? Boolean ?: false
                     val lastSeenValue = statusData["lastSeen"]
                     
-                    println("ChatViewModel: Real-time online status update for $otherUserId: $isOnline, lastSeen: $lastSeenValue")
+                    println("ChatViewModel: DEBUG - Received status data: $statusData")
+                    println("ChatViewModel: DEBUG - Parsed isOnline: $isOnline")
+                    println("ChatViewModel: DEBUG - Parsed lastSeenValue: $lastSeenValue")
+                    
                     val currentOtherUser = _chatState.value.otherUser
-                    println("ChatViewModel: Current other user: ${currentOtherUser?.username}")
+                    println("ChatViewModel: DEBUG - Current other user: ${currentOtherUser?.username}")
                     
                     if (currentOtherUser != null) {
                         // Convert lastSeen to Timestamp if available and not "null"
                         val lastSeenTimestamp = when (lastSeenValue) {
-                            is Long -> com.google.firebase.Timestamp(lastSeenValue / 1000, ((lastSeenValue % 1000) * 1000000).toInt())
-                            "null" -> null
-                            else -> null
+                            is Long -> {
+                                val timestamp = com.google.firebase.Timestamp(lastSeenValue / 1000, ((lastSeenValue % 1000) * 1000000).toInt())
+                                println("ChatViewModel: DEBUG - Converted lastSeen to Timestamp: $timestamp")
+                                timestamp
+                            }
+                            "null" -> {
+                                println("ChatViewModel: DEBUG - lastSeen is null")
+                                null
+                            }
+                            else -> {
+                                println("ChatViewModel: DEBUG - lastSeen is unknown type: ${lastSeenValue?.javaClass}")
+                                null
+                            }
                         }
                         
                         _chatState.value = _chatState.value.copy(
@@ -154,13 +167,13 @@ class ChatViewModel(
                                 lastSeen = lastSeenTimestamp
                             )
                         )
-                        println("ChatViewModel: Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline")
+                        println("ChatViewModel: DEBUG - Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline, lastSeen: $lastSeenTimestamp")
                     } else {
-                        println("ChatViewModel: Current other user is null!")
+                        println("ChatViewModel: ERROR - Current other user is null!")
                     }
                 }
             } ?: run {
-                println("ChatViewModel: otherUserId is null, cannot start online status listener")
+                println("ChatViewModel: ERROR - otherUserId is null, cannot start online status listener")
             }
         }
         

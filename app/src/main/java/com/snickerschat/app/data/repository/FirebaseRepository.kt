@@ -468,10 +468,15 @@ class FirebaseRepository {
     
     suspend fun updateUserOnlineStatus(isOnline: Boolean): Result<Unit> {
         return try {
-            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = System.currentTimeMillis()
+            val currentUserId = auth.currentUser?.uid
+            if (currentUserId.isNullOrEmpty()) {
+                println("FirebaseRepository: ERROR - User ID is null or empty!")
+                throw Exception("User not authenticated or ID is empty")
+            }
             
-            println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
+            println("FirebaseRepository: DEBUG - User ID: $currentUserId")
+            println("FirebaseRepository: DEBUG - Updating online status: $isOnline")
+            println("FirebaseRepository: DEBUG - RTDB path: ${onlineStatusRef.child(currentUserId).toString()}")
             
             // Update in RTDB only
             val statusData = if (isOnline) {
@@ -482,32 +487,36 @@ class FirebaseRepository {
             } else {
                 mapOf(
                     "isOnline" to false,
-                    "lastSeen" to now
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
                 )
             }
             
+            println("FirebaseRepository: DEBUG - Status data to write: $statusData")
+            
             // Update in RTDB
             onlineStatusRef.child(currentUserId).setValue(statusData).await()
+            println("FirebaseRepository: DEBUG - Successfully wrote to RTDB")
             
             // Set up onDisconnect when going online
             if (isOnline) {
                 onlineStatusRef.child(currentUserId).onDisconnect().setValue(
                     mapOf(
                         "isOnline" to false,
-                        "lastSeen" to now
+                        "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
                     )
                 )
-                println("FirebaseRepository: onDisconnect set up for user")
+                println("FirebaseRepository: DEBUG - onDisconnect set up for user")
             } else {
                 // Remove onDisconnect when going offline manually
                 onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
-                println("FirebaseRepository: onDisconnect removed for user")
+                println("FirebaseRepository: DEBUG - onDisconnect removed for user")
             }
             
             println("FirebaseRepository: Online status updated successfully in RTDB")
             Result.success(Unit)
         } catch (e: Exception) {
-            println("FirebaseRepository: Error updating online status: ${e.message}")
+            println("FirebaseRepository: ERROR updating online status: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -655,24 +664,39 @@ class FirebaseRepository {
     }
     
     fun getOnlineStatusFlow(userId: String): Flow<Map<String, Any>> = callbackFlow {
-        println("FirebaseRepository: Starting online status listener for user: $userId")
+        if (userId.isNullOrEmpty()) {
+            println("FirebaseRepository: ERROR - Cannot start listener for null/empty userId")
+            return@callbackFlow
+        }
+        
+        println("FirebaseRepository: DEBUG - Starting online status listener for user: $userId")
+        println("FirebaseRepository: DEBUG - RTDB path: ${onlineStatusRef.child(userId).toString()}")
+        
         val listener = onlineStatusRef.child(userId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                    println("FirebaseRepository: Online status data changed for user $userId")
+                    println("FirebaseRepository: DEBUG - onDataChange triggered for user $userId")
+                    println("FirebaseRepository: DEBUG - Snapshot exists: ${snapshot.exists()}")
+                    println("FirebaseRepository: DEBUG - Snapshot value: ${snapshot.value}")
                     
                     if (snapshot.exists()) {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
                         val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java)
                         
+                        println("FirebaseRepository: DEBUG - Raw values from RTDB:")
+                        println("FirebaseRepository: DEBUG - isOnline: ${snapshot.child("isOnline").value}")
+                        println("FirebaseRepository: DEBUG - lastSeen: ${snapshot.child("lastSeen").value}")
+                        println("FirebaseRepository: DEBUG - Parsed isOnline: $isOnline")
+                        println("FirebaseRepository: DEBUG - Parsed lastSeen: $lastSeen")
+                        
                         val statusData = mutableMapOf<String, Any>()
                         statusData["isOnline"] = isOnline
                         statusData["lastSeen"] = lastSeen ?: "null"
                         
-                        println("FirebaseRepository: Online status for user $userId: $isOnline, lastSeen: $lastSeen")
+                        println("FirebaseRepository: DEBUG - Sending status data: $statusData")
                         trySend(statusData)
                     } else {
-                        println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
+                        println("FirebaseRepository: DEBUG - No online status data for user $userId, defaulting to offline")
                         val defaultStatus = mutableMapOf<String, Any>()
                         defaultStatus["isOnline"] = false
                         defaultStatus["lastSeen"] = "null"
@@ -681,7 +705,9 @@ class FirebaseRepository {
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                    println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
+                    println("FirebaseRepository: ERROR - Online status listener cancelled for user $userId")
+                    println("FirebaseRepository: ERROR - Database error: ${error.message}")
+                    println("FirebaseRepository: ERROR - Error code: ${error.code}")
                     val errorStatus = mutableMapOf<String, Any>()
                     errorStatus["isOnline"] = false
                     errorStatus["lastSeen"] = "null"
@@ -691,7 +717,7 @@ class FirebaseRepository {
         )
         
         awaitClose { 
-            println("FirebaseRepository: Removing online status listener for user: $userId")
+            println("FirebaseRepository: DEBUG - Removing online status listener for user: $userId")
             onlineStatusRef.child(userId).removeEventListener(listener) 
         }
     }

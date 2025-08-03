@@ -44,27 +44,48 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Set user as online when app becomes active
-        println("MainActivity: onResume - setting user as online")
+        println("MainActivity: DEBUG - onResume called")
+        val currentUser = repository.getCurrentUser()
+        println("MainActivity: DEBUG - Current user: ${currentUser?.id}")
         scope.launch {
-            repository.updateUserOnlineStatus(true)
+            try {
+                repository.updateUserOnlineStatus(true)
+                println("MainActivity: DEBUG - Successfully set user as online")
+            } catch (e: Exception) {
+                println("MainActivity: ERROR - Failed to set user as online: ${e.message}")
+            }
         }
     }
     
     override fun onStop() {
         super.onStop()
         // Set user as offline when app goes to background
-        println("MainActivity: onStop - setting user as offline")
+        println("MainActivity: DEBUG - onStop called")
+        val currentUser = repository.getCurrentUser()
+        println("MainActivity: DEBUG - Current user: ${currentUser?.id}")
         scope.launch {
-            repository.updateUserOnlineStatus(false)
+            try {
+                repository.updateUserOnlineStatus(false)
+                println("MainActivity: DEBUG - Successfully set user as offline")
+            } catch (e: Exception) {
+                println("MainActivity: ERROR - Failed to set user as offline: ${e.message}")
+            }
         }
     }
     
     override fun onDestroy() {
         super.onDestroy()
         // Set user as offline when app is destroyed
-        println("MainActivity: onDestroy - setting user as offline")
+        println("MainActivity: DEBUG - onDestroy called")
+        val currentUser = repository.getCurrentUser()
+        println("MainActivity: DEBUG - Current user: ${currentUser?.id}")
         scope.launch {
-            repository.updateUserOnlineStatus(false)
+            try {
+                repository.updateUserOnlineStatus(false)
+                println("MainActivity: DEBUG - Successfully set user as offline in onDestroy")
+            } catch (e: Exception) {
+                println("MainActivity: ERROR - Failed to set user as offline in onDestroy: ${e.message}")
+            }
         }
     }
 }
