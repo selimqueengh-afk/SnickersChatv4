@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -89,6 +90,7 @@ fun MainScreen(
                         friendsViewModel = friendsViewModel,
                         onChatRoomCreated = {
                             // Refresh chat list when a new chat room is created
+                            println("Chat room created, refreshing chat list...")
                             chatListViewModel.loadChatRooms()
                         }
                     )
@@ -118,6 +120,20 @@ fun ChatListScreen(
         // Top bar
         TopAppBar(
             title = { Text(stringResource(R.string.chats)) },
+            actions = {
+                IconButton(
+                    onClick = {
+                        println("Manual refresh triggered")
+                        chatListViewModel.loadChatRooms()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Yenile",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 titleContentColor = MaterialTheme.colorScheme.onPrimary

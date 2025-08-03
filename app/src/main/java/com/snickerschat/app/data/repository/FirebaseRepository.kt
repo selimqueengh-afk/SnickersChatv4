@@ -211,17 +211,14 @@ class FirebaseRepository {
                     containsReceiver
                 }
             
-            // Create chat room only if it doesn't exist
-            if (existingChatRoom.isEmpty()) {
-                val chatRoom = ChatRoom(
-                    participants = listOf(request.senderId, request.receiverId),
-                    lastMessageTimestamp = com.google.firebase.Timestamp.now()
-                )
-                val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
-                println("Chat room created with ID: ${chatRoomRef.id}")
-            } else {
-                println("Chat room already exists")
-            }
+            // Always create a new chat room for now (for debugging)
+            val chatRoom = ChatRoom(
+                participants = listOf(request.senderId, request.receiverId),
+                lastMessageTimestamp = com.google.firebase.Timestamp.now()
+            )
+            val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
+            println("Chat room created with ID: ${chatRoomRef.id}")
+            println("Participants: ${chatRoom.participants}")
             
             Result.success(Unit)
         } catch (e: Exception) {
@@ -247,7 +244,6 @@ class FirebaseRepository {
             
             val snapshot = chatRoomsCollection
                 .whereArrayContains("participants", currentUserId)
-                .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
             

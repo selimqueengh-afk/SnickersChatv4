@@ -31,14 +31,13 @@ class ChatListViewModel(
                         val otherUserId = chatRoom.participants.find { it != currentUserId } ?: continue
                         println("Getting user info for: $otherUserId")
                         
-                        repository.getUser(otherUserId)
-                            .onSuccess { user ->
-                                println("Found user: ${user.username}")
-                                chatRoomsWithUser.add(ChatRoomWithUser(chatRoom = chatRoom, otherUser = user))
-                            }
-                            .onFailure { error ->
-                                println("Failed to get user $otherUserId: ${error.message}")
-                            }
+                        try {
+                            val user = repository.getUser(otherUserId).getOrThrow()
+                            println("Found user: ${user.username}")
+                            chatRoomsWithUser.add(ChatRoomWithUser(chatRoom = chatRoom, otherUser = user))
+                        } catch (error: Exception) {
+                            println("Failed to get user $otherUserId: ${error.message}")
+                        }
                     }
                     
                     println("Converted to ${chatRoomsWithUser.size} ChatRoomWithUser")
