@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.platform.LocalContext
 import com.snickerschat.app.data.repository.FirebaseRepository
 import com.snickerschat.app.ui.screens.*
 import com.snickerschat.app.ui.theme.SnickersChatTheme
