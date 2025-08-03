@@ -134,16 +134,18 @@ class ChatViewModel(
                 
                 repository.getOnlineStatusFlow(otherUserId).collect { statusData ->
                     val isOnline = statusData["isOnline"] as? Boolean ?: false
-                    val lastSeen = statusData["lastSeen"] as? Long
+                    val lastSeenValue = statusData["lastSeen"]
                     
-                    println("ChatViewModel: Real-time online status update for $otherUserId: $isOnline, lastSeen: $lastSeen")
+                    println("ChatViewModel: Real-time online status update for $otherUserId: $isOnline, lastSeen: $lastSeenValue")
                     val currentOtherUser = _chatState.value.otherUser
                     println("ChatViewModel: Current other user: ${currentOtherUser?.username}")
                     
                     if (currentOtherUser != null) {
-                        // Convert lastSeen to Timestamp if available
-                        val lastSeenTimestamp = lastSeen?.let { 
-                            com.google.firebase.Timestamp(it / 1000, ((it % 1000) * 1000000).toInt())
+                        // Convert lastSeen to Timestamp if available and not "null"
+                        val lastSeenTimestamp = when (lastSeenValue) {
+                            is Long -> com.google.firebase.Timestamp(lastSeenValue / 1000, ((lastSeenValue % 1000) * 1000000).toInt())
+                            "null" -> null
+                            else -> null
                         }
                         
                         _chatState.value = _chatState.value.copy(

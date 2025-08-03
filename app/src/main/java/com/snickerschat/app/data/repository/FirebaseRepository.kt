@@ -665,28 +665,27 @@ class FirebaseRepository {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
                         val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java)
                         
-                        val statusData = mapOf(
-                            "isOnline" to isOnline,
-                            "lastSeen" to lastSeen
-                        )
+                        val statusData = mutableMapOf<String, Any>()
+                        statusData["isOnline"] = isOnline
+                        statusData["lastSeen"] = lastSeen ?: "null"
                         
                         println("FirebaseRepository: Online status for user $userId: $isOnline, lastSeen: $lastSeen")
                         trySend(statusData)
                     } else {
                         println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
-                        trySend(mapOf(
-                            "isOnline" to false,
-                            "lastSeen" to null
-                        ))
+                        val defaultStatus = mutableMapOf<String, Any>()
+                        defaultStatus["isOnline"] = false
+                        defaultStatus["lastSeen"] = "null"
+                        trySend(defaultStatus)
                     }
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                     println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
-                    trySend(mapOf(
-                        "isOnline" to false,
-                        "lastSeen" to null
-                    ))
+                    val errorStatus = mutableMapOf<String, Any>()
+                    errorStatus["isOnline"] = false
+                    errorStatus["lastSeen"] = "null"
+                    trySend(errorStatus)
                 }
             }
         )
