@@ -117,7 +117,7 @@ fun ChatScreen(
         )
         
         // Error message
-        if (chatState.error != null) {
+        chatState.error?.let { error ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -128,7 +128,7 @@ fun ChatScreen(
                 )
             ) {
                 Text(
-                    text = chatState.error,
+                    text = error,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(16.dp),
