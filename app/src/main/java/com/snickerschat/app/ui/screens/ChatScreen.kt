@@ -2,7 +2,9 @@ package com.snickerschat.app.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -414,32 +416,20 @@ fun ChatScreen(
                         items = chatState.messages,
                         key = { it.message.id }
                     ) { messageWithUser ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
-                                animationSpec = tween(durationMillis = 400, easing = EaseOutBack)
-                            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
-                                animationSpec = tween(durationMillis = 300)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 200)),
+                        MessageItem(
+                            messageWithUser = messageWithUser,
+                            onLongClick = {
+                                // Show message options
+                                showMessageOptionsDialog = true
+                                selectedMessageForOptions = messageWithUser
+                            },
                             modifier = Modifier.animateItemPlacement(
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
                                     stiffness = Spring.StiffnessLow
                                 )
                             )
-                        ) {
-                            MessageItem(
-                                messageWithUser = messageWithUser,
-                                onLongClick = {
-                                    // Show message options
-                                    showMessageOptionsDialog = true
-                                    selectedMessageForOptions = messageWithUser
-                                }
-                            )
-                        }
+                        )
                     }
                 }
             }
@@ -777,7 +767,8 @@ fun ChatScreen(
 @Composable
 fun MessageItem(
     messageWithUser: MessageWithUser,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isFromCurrentUser = messageWithUser.isFromCurrentUser
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -786,7 +777,7 @@ fun MessageItem(
     var isPressed by remember { mutableStateOf(false) }
     
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start
     ) {
         Card(
@@ -812,7 +803,8 @@ fun MessageItem(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessLow
                     )
-                ),
+                )
+                .then(modifier),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
