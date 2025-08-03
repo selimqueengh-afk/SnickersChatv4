@@ -400,12 +400,16 @@ class FirebaseRepository {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
             val now = com.google.firebase.Timestamp.now()
             
+            println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
+            
             val messagesSnapshot = messagesCollection
                 .whereEqualTo("chatRoomId", chatRoomId)
                 .whereEqualTo("receiverId", currentUserId)
                 .whereEqualTo("isRead", false)
                 .get()
                 .await()
+            
+            println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages")
             
             for (messageDoc in messagesSnapshot.documents) {
                 messageDoc.reference.update(
@@ -414,10 +418,12 @@ class FirebaseRepository {
                         "readAt" to now
                     )
                 ).await()
+                println("FirebaseRepository: Marked message ${messageDoc.id} as read")
             }
             
             Result.success(Unit)
         } catch (e: Exception) {
+            println("FirebaseRepository: Error marking messages as read: ${e.message}")
             Result.failure(e)
         }
     }

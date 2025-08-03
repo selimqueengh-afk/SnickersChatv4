@@ -141,7 +141,14 @@ class ChatViewModel(
     
     fun markAllMessagesAsRead(chatRoomId: String) {
         viewModelScope.launch {
+            println("ChatViewModel: Marking all messages as read in chat: $chatRoomId")
             repository.markAllMessagesAsRead(chatRoomId)
+                .onSuccess {
+                    println("ChatViewModel: Successfully marked all messages as read")
+                }
+                .onFailure { exception ->
+                    println("ChatViewModel: Failed to mark messages as read: ${exception.message}")
+                }
         }
     }
     

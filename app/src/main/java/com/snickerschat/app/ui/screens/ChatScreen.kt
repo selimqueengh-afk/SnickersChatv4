@@ -48,6 +48,7 @@ fun ChatScreen(
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    val scope = rememberCoroutineScope()
     
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
@@ -103,19 +104,19 @@ fun ChatScreen(
                         )
                         Text(
                             text = if (otherUser.isOnline) {
-                                "Çevrimiçi"
+                                "🟢 Çevrimiçi"
                             } else {
                                 otherUser.lastSeen?.let { lastSeen ->
                                     val now = com.google.firebase.Timestamp.now()
                                     val diffInSeconds = now.seconds - lastSeen.seconds
                                     
                                     when {
-                                        diffInSeconds < 60 -> "Az önce"
-                                        diffInSeconds < 3600 -> "${diffInSeconds / 60} dakika önce"
-                                        diffInSeconds < 86400 -> "${diffInSeconds / 3600} saat önce"
-                                        else -> "${diffInSeconds / 86400} gün önce"
+                                        diffInSeconds < 60 -> "🔴 Az önce"
+                                        diffInSeconds < 3600 -> "🔴 ${diffInSeconds / 60} dakika önce"
+                                        diffInSeconds < 86400 -> "🔴 ${diffInSeconds / 3600} saat önce"
+                                        else -> "🔴 ${diffInSeconds / 86400} gün önce"
                                     }
-                                } ?: "Çevrimdışı"
+                                } ?: "🔴 Çevrimdışı"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
@@ -173,6 +174,12 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
+            // Check if we need to show scroll to bottom button
+            val showScrollToBottom by remember {
+                derivedStateOf {
+                    listState.firstVisibleItemIndex < chatState.messages.size - 3
+                }
+            }
             if (chatState.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
