@@ -378,7 +378,7 @@ class ChatViewModel(
         }
     }
     
-    private fun sendMessageWithMedia(content: String, mediaUrl: String, _: MediaType) {
+    private fun sendMessageWithMedia(content: String, mediaUrl: String, mediaType: MediaType) {
         viewModelScope.launch {
             try {
                 val receiverId = _chatState.value.otherUserId
