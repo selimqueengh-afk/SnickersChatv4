@@ -3,12 +3,13 @@ package com.snickerschat.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.rememberDismissState
+import androidx.compose.material3.DismissDirection
+import androidx.compose.material3.DismissValue
+import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.rememberDismissState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,6 +28,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +45,7 @@ import java.util.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     chatRoomId: String,
@@ -408,31 +410,17 @@ fun ChatScreen(
                         items = chatState.messages,
                         key = { it.message.id }
                     ) { messageWithUser ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { if (messageWithUser.isFromCurrentUser) 300 else -300 },
-                                animationSpec = tween(durationMillis = 300)
-                            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-                            modifier = Modifier.animateItemPlacement(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                )
-                            )
-                        ) {
-                            SwipeToDeleteItem(
-                                messageWithUser = messageWithUser,
-                                onDelete = {
-                                    // TODO: Implement message deletion
-                                    println("Delete message: ${messageWithUser.message.id}")
-                                },
-                                onLongClick = {
-                                    // TODO: Show message options (copy, edit, reply)
-                                    println("Long click message: ${messageWithUser.message.id}")
-                                }
-                            )
-                        }
+                        SwipeToDeleteItem(
+                            messageWithUser = messageWithUser,
+                            onDelete = {
+                                // TODO: Implement message deletion
+                                println("Delete message: ${messageWithUser.message.id}")
+                            },
+                            onLongClick = {
+                                // TODO: Show message options (copy, edit, reply)
+                                println("Long click message: ${messageWithUser.message.id}")
+                            }
+                        )
                     }
                 }
             }
@@ -583,8 +571,8 @@ fun MessageItem(
     val isFromCurrentUser = messageWithUser.isFromCurrentUser
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     
-    // Hover state for message bubble
-    var isHovered by remember { mutableStateOf(false) }
+    // Message bubble state
+    var isPressed by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -600,11 +588,6 @@ fun MessageItem(
                         onPress = { /* Handle normal tap */ }
                     )
                 }
-                .graphicsLayer {
-                    scaleX = if (isHovered) 1.02f else 1f
-                    scaleY = if (isHovered) 1.02f else 1f
-                    shadowElevation = if (isHovered) 8f else 2f
-                }
                 .animateContentSize(
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -619,17 +602,9 @@ fun MessageItem(
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isFromCurrentUser) {
-                    if (isHovered) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    }
+                    MaterialTheme.colorScheme.primary
                 } else {
-                    if (isHovered) {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
+                    MaterialTheme.colorScheme.surfaceVariant
                 }
             )
         ) {
