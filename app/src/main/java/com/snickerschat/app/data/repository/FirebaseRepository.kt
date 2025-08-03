@@ -334,6 +334,9 @@ class FirebaseRepository {
     suspend fun sendMessage(receiverId: String, content: String): Result<Message> {
         return try {
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            val messageId = messagesCollection.document().id // Generate ID
+            val now = System.currentTimeMillis()
+            
             println("FirebaseRepository: Sending message from $senderId to $receiverId")
             
             // Find or create chat room
@@ -360,20 +363,36 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Using chat room ID: $chatRoomId")
             
-            // Create message
+            // Create message in RTDB
+            val messageData = mapOf(
+                "id" to messageId,
+                "senderId" to senderId,
+                "receiverId" to receiverId,
+                "content" to content,
+                "timestamp" to now,
+                "isRead" to false,
+                "chatRoomId" to chatRoomId
+            )
+            
+            // Save to RTDB for instant real-time sync
+            messageReadRef.child(chatRoomId).child(messageId).setValue(messageData).await()
+            
+            // Also save to Firestore for persistence
             val message = Message(
+                id = messageId,
                 senderId = senderId,
                 receiverId = receiverId,
                 content = content,
+                timestamp = com.google.firebase.Timestamp.now(),
+                isRead = false,
                 chatRoomId = chatRoomId
             )
             
-            val messageRef = messagesCollection.add(message).await()
-            val savedMessage = message.copy(id = messageRef.id)
+            messagesCollection.document(messageId).set(message).await()
             
-            println("FirebaseRepository: Message saved with ID: ${savedMessage.id}")
+            println("FirebaseRepository: Message saved with ID: ${message.id}")
             
-            // Update chat room immediately
+            // Update chat room
             chatRoomsCollection.document(chatRoomId).update(
                 mapOf(
                     "lastMessage" to content,
@@ -383,21 +402,8 @@ class FirebaseRepository {
             ).await()
             
             println("FirebaseRepository: Chat room updated successfully")
-            
-            // Also save to RTDB for instant real-time sync
-            messageReadRef.child(chatRoomId).child(savedMessage.id).setValue(
-                mapOf(
-                    "messageId" to savedMessage.id,
-                    "senderId" to senderId,
-                    "receiverId" to receiverId,
-                    "content" to content,
-                    "timestamp" to System.currentTimeMillis(),
-                    "isRead" to false
-                )
-            ).await()
-            
-            println("FirebaseRepository: Message also saved to RTDB for instant sync")
-            Result.success(savedMessage)
+            println("FirebaseRepository: Message saved to RTDB and Firestore")
+            Result.success(message)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
             Result.failure(e)
@@ -422,48 +428,34 @@ class FirebaseRepository {
     suspend fun markAllMessagesAsRead(chatRoomId: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = com.google.firebase.Timestamp.now()
             val nowMillis = System.currentTimeMillis()
             
             println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
             
-            // Get all unread messages in this chat room where current user is the receiver
-            val messagesSnapshot = messagesCollection
-                .whereEqualTo("chatRoomId", chatRoomId)
-                .whereEqualTo("receiverId", currentUserId) // Only mark messages where current user is receiver
-                .whereEqualTo("isRead", false)
-                .get()
-                .await()
+            // Get all messages from RTDB where current user is receiver
+            val messagesSnapshot = messageReadRef.child(chatRoomId).get().await()
             
-            println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages for user $currentUserId")
+            println("FirebaseRepository: Found ${messagesSnapshot.childrenCount} messages in RTDB")
             
-            for (messageDoc in messagesSnapshot.documents) {
-                val messageId = messageDoc.id
-                val message = messageDoc.toObject(Message::class.java)
+            for (child in messagesSnapshot.children) {
+                val messageId = child.key
+                val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
                 
-                // Only mark as read if current user is the receiver
-                if (message?.receiverId == currentUserId) {
-                    println("FirebaseRepository: Marking message $messageId as read")
+                if (messageData != null) {
+                    val receiverId = messageData["receiverId"] as? String
+                    val isRead = messageData["isRead"] as? Boolean ?: false
                     
-                    // Update in Firestore
-                    messageDoc.reference.update(
-                        mapOf(
-                            "isRead" to true,
-                            "readAt" to now
-                        )
-                    ).await()
-                    
-                    // Update in RTDB for real-time
-                    messageReadRef.child(chatRoomId).child(messageId).setValue(
-                        mapOf(
-                            "readBy" to currentUserId,
-                            "readAt" to nowMillis,
-                            "timestamp" to nowMillis,
-                            "isRead" to true
-                        )
-                    ).await()
-                    
-                    println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
+                    // Only mark as read if current user is the receiver and message is not read
+                    if (receiverId == currentUserId && !isRead) {
+                        println("FirebaseRepository: Marking message $messageId as read")
+                        
+                        // Update in RTDB
+                        messageReadRef.child(chatRoomId).child(messageId).child("isRead").setValue(true).await()
+                        messageReadRef.child(chatRoomId).child(messageId).child("readAt").setValue(nowMillis).await()
+                        messageReadRef.child(chatRoomId).child(messageId).child("readBy").setValue(currentUserId).await()
+                        
+                        println("FirebaseRepository: Marked message $messageId as read in RTDB")
+                    }
                 }
             }
             
@@ -481,7 +473,7 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
             
-            // Update in RTDB for real-time
+            // Update ONLY in RTDB for real-time
             if (isOnline) {
                 println("FirebaseRepository: Setting user as online in RTDB")
                 onlineStatusRef.child(currentUserId).setValue(
@@ -516,15 +508,7 @@ class FirebaseRepository {
                 println("FirebaseRepository: onDisconnect removed for user")
             }
             
-            // Also update in Firestore for lastSeen persistence
-            usersCollection.document(currentUserId).update(
-                mapOf(
-                    "isOnline" to isOnline,
-                    "lastSeen" to if (isOnline) null else com.google.firebase.Timestamp.now()
-                )
-            ).await()
-            
-            println("FirebaseRepository: Online status updated successfully in RTDB and Firestore")
+            println("FirebaseRepository: Online status updated successfully in RTDB")
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error updating online status: ${e.message}")
@@ -535,24 +519,45 @@ class FirebaseRepository {
     
     // Real-time listeners
     fun getMessagesFlow(chatRoomId: String): Flow<List<Message>> = callbackFlow {
-        val listener = messagesCollection
-            .whereEqualTo("chatRoomId", chatRoomId)
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    // Handle error
-                    return@addSnapshotListener
+        println("FirebaseRepository: Starting messages listener for chat: $chatRoomId")
+        val listener = messageReadRef.child(chatRoomId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    println("FirebaseRepository: Messages data changed for chat $chatRoomId")
+                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    
+                    val messages = mutableListOf<Message>()
+                    for (child in snapshot.children) {
+                        val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
+                        if (messageData != null) {
+                            val message = Message(
+                                id = messageData["id"] as? String ?: "",
+                                senderId = messageData["senderId"] as? String ?: "",
+                                receiverId = messageData["receiverId"] as? String ?: "",
+                                content = messageData["content"] as? String ?: "",
+                                timestamp = com.google.firebase.Timestamp.now(), // Convert from long
+                                isRead = messageData["isRead"] as? Boolean ?: false,
+                                chatRoomId = messageData["chatRoomId"] as? String ?: ""
+                            )
+                            messages.add(message)
+                        }
+                    }
+                    
+                    println("FirebaseRepository: Found ${messages.size} messages in RTDB")
+                    trySend(messages)
                 }
                 
-                val messages = snapshot?.documents?.mapNotNull { 
-                    it.toObject(Message::class.java) 
-                } ?: emptyList()
-                
-                trySend(messages)
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    println("FirebaseRepository: Messages listener cancelled for chat $chatRoomId: ${error.message}")
+                    trySend(emptyList())
+                }
             }
+        )
         
-        // Clean up listener when flow is cancelled
-        awaitClose { listener.remove() }
+        awaitClose { 
+            println("FirebaseRepository: Removing messages listener for chat: $chatRoomId")
+            messageReadRef.child(chatRoomId).removeEventListener(listener) 
+        }
     }
     
     fun getChatRoomsFlow(): Flow<List<ChatRoom>> = callbackFlow {
