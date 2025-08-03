@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.snickerschat.app.data.model.Message
+import android.net.Uri
+import java.io.File
 
 class ChatViewModel(
     private val repository: FirebaseRepository
@@ -350,5 +352,50 @@ class ChatViewModel(
     
     private fun getCurrentUserId(): String? {
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    }
+    
+    // Media handling functions
+    fun handleCameraPhoto(photoUri: Uri) {
+        viewModelScope.launch {
+            try {
+                // TODO: Upload photo to Cloudinary and send message
+                showError("Kamera fotoğrafı işleme yakında eklenecek!")
+            } catch (e: Exception) {
+                showError("Fotoğraf işlenirken hata: ${e.message}")
+            }
+        }
+    }
+    
+    fun handleGallerySelection(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                // TODO: Upload image to Cloudinary and send message
+                showError("Galeri seçimi işleme yakında eklenecek!")
+            } catch (e: Exception) {
+                showError("Galeri seçimi işlenirken hata: ${e.message}")
+            }
+        }
+    }
+    
+    fun handleAudioRecording(audioFile: File) {
+        viewModelScope.launch {
+            try {
+                // TODO: Upload audio to Cloudinary and send message
+                showError("Sesli mesaj işleme yakında eklenecek!")
+            } catch (e: Exception) {
+                showError("Sesli mesaj işlenirken hata: ${e.message}")
+            }
+        }
+    }
+    
+    fun handleFileSelection(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                // TODO: Upload file to Cloudinary and send message
+                showError("Dosya işleme yakında eklenecek!")
+            } catch (e: Exception) {
+                showError("Dosya işlenirken hata: ${e.message}")
+            }
+        }
     }
 }

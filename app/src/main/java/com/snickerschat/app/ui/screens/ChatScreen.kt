@@ -25,6 +25,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -81,6 +86,39 @@ fun ChatScreen(
     var showReactionDialog by remember { mutableStateOf(false) }
     var selectedMessageForReaction by remember { mutableStateOf<MessageWithUser?>(null) }
     var showMediaPickerDialog by remember { mutableStateOf(false) }
+    
+    // Media picker launchers
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            // TODO: Handle camera photo with actual file
+            chatViewModel.showError("Kamera fotoğrafı işleme yakında eklenecek!")
+        }
+    }
+    
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            chatViewModel.handleGallerySelection(it)
+        }
+    }
+    
+    val audioRecorderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // TODO: Handle audio recording
+        chatViewModel.showError("Sesli mesaj yakında eklenecek!")
+    }
+    
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            chatViewModel.handleFileSelection(it)
+        }
+    }
     
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
@@ -936,8 +974,14 @@ fun ChatScreen(
                                 title = "Kamera",
                                 subtitle = "Fotoğraf çek",
                                 onClick = {
-                                    // TODO: Open camera
-                                    chatViewModel.showError("Kamera yakında eklenecek!")
+                                    // Create temporary file for camera
+                                    val photoFile = java.io.File.createTempFile("photo_", ".jpg", context.cacheDir)
+                                    val photoUri = androidx.core.content.FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        photoFile
+                                    )
+                                    cameraLauncher.launch(photoUri)
                                     showMediaPickerDialog = false
                                 }
                             )
@@ -948,8 +992,7 @@ fun ChatScreen(
                                 title = "Galeri",
                                 subtitle = "Fotoğraf seç",
                                 onClick = {
-                                    // TODO: Open gallery
-                                    chatViewModel.showError("Galeri yakında eklenecek!")
+                                    galleryLauncher.launch("image/*")
                                     showMediaPickerDialog = false
                                 }
                             )
@@ -960,7 +1003,7 @@ fun ChatScreen(
                                 title = "Sesli Mesaj",
                                 subtitle = "Ses kaydet",
                                 onClick = {
-                                    // TODO: Start audio recording
+                                    // TODO: Implement audio recording
                                     chatViewModel.showError("Sesli mesaj yakında eklenecek!")
                                     showMediaPickerDialog = false
                                 }
@@ -972,8 +1015,7 @@ fun ChatScreen(
                                 title = "Dosya",
                                 subtitle = "Dosya seç",
                                 onClick = {
-                                    // TODO: Open file picker
-                                    chatViewModel.showError("Dosya seçici yakında eklenecek!")
+                                    filePickerLauncher.launch("*/*")
                                     showMediaPickerDialog = false
                                 }
                             )
