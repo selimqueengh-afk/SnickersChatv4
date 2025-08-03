@@ -47,8 +47,11 @@ class MainActivity : ComponentActivity() {
         println("MainActivity: DEBUG - onResume called")
         val currentUser = repository.getCurrentUser()
         println("MainActivity: DEBUG - Current user: ${currentUser?.id}")
+        
+        // Add delay to avoid conflicts with signIn
         scope.launch {
             try {
+                delay(1000) // Wait 1 second to avoid conflicts
                 repository.updateUserOnlineStatus(true)
                 println("MainActivity: DEBUG - Successfully set user as online")
             } catch (e: Exception) {

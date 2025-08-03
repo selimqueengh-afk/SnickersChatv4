@@ -113,7 +113,22 @@ class FirebaseRepository {
                         println("FirebaseRepository: DEBUG - User status initialized in RTDB")
                     } else {
                         println("FirebaseRepository: DEBUG - User status already exists in RTDB, updating to online")
-                        updateUserOnlineStatus(true)
+                        // Don't call updateUserOnlineStatus here to avoid conflicts
+                        userStatusRef.child(userId).updateChildren(
+                            mapOf(
+                                "isOnline" to true,
+                                "lastSeen" to null
+                            )
+                        ).await()
+                        
+                        // Set up onDisconnect
+                        userStatusRef.child(userId).onDisconnect().setValue(
+                            mapOf(
+                                "isOnline" to false,
+                                "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                            )
+                        )
+                        println("FirebaseRepository: DEBUG - User status updated to online in RTDB")
                     }
                 }
                 Result.success(user)
@@ -554,12 +569,17 @@ class FirebaseRepository {
             
             println("FirebaseRepository: DEBUG - Status data to write: $statusData")
             
-            // Update in RTDB
-            userStatusRef.child(currentUserId).setValue(statusData).await()
-            println("FirebaseRepository: DEBUG - Successfully wrote to RTDB")
-            
-            // Set up onDisconnect when going online
+            // Update in RTDB using updateChildren to avoid overwriting onDisconnect
             if (isOnline) {
+                userStatusRef.child(currentUserId).updateChildren(
+                    mapOf(
+                        "isOnline" to true,
+                        "lastSeen" to null
+                    )
+                ).await()
+                println("FirebaseRepository: DEBUG - Successfully updated to online in RTDB")
+                
+                // Set up onDisconnect when going online
                 userStatusRef.child(currentUserId).onDisconnect().setValue(
                     mapOf(
                         "isOnline" to false,
@@ -568,6 +588,15 @@ class FirebaseRepository {
                 )
                 println("FirebaseRepository: DEBUG - onDisconnect set up for user")
             } else {
+                // For offline, use setValue to ensure complete update
+                userStatusRef.child(currentUserId).setValue(
+                    mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                    )
+                ).await()
+                println("FirebaseRepository: DEBUG - Successfully updated to offline in RTDB")
+                
                 // Remove onDisconnect when going offline manually
                 userStatusRef.child(currentUserId).onDisconnect().removeValue()
                 println("FirebaseRepository: DEBUG - onDisconnect removed for user")
