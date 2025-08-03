@@ -473,7 +473,7 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
             
-            // Simple RTDB update
+            // Update in RTDB only
             val statusData = if (isOnline) {
                 mapOf(
                     "isOnline" to true,
@@ -652,7 +652,7 @@ class FirebaseRepository {
         awaitClose { typingStatusRef.child(chatRoomId).removeEventListener(listener) }
     }
     
-    fun getOnlineStatusFlow(userId: String): Flow<Boolean> = callbackFlow {
+    fun getOnlineStatusFlow(userId: String): Flow<Map<String, Any>> = callbackFlow {
         println("FirebaseRepository: Starting online status listener for user: $userId")
         val listener = onlineStatusRef.child(userId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
@@ -661,17 +661,34 @@ class FirebaseRepository {
                     
                     if (snapshot.exists()) {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
-                        println("FirebaseRepository: Online status for user $userId: $isOnline")
-                        trySend(isOnline)
+                        val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java)
+                        val timestamp = snapshot.child("timestamp").getValue(Long::class.java)
+                        
+                        val statusData = mapOf(
+                            "isOnline" to isOnline,
+                            "lastSeen" to lastSeen,
+                            "timestamp" to timestamp
+                        )
+                        
+                        println("FirebaseRepository: Online status for user $userId: $isOnline, lastSeen: $lastSeen")
+                        trySend(statusData)
                     } else {
                         println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
-                        trySend(false)
+                        trySend(mapOf(
+                            "isOnline" to false,
+                            "lastSeen" to null,
+                            "timestamp" to null
+                        ))
                     }
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                     println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
-                    trySend(false)
+                    trySend(mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to null,
+                        "timestamp" to null
+                    ))
                 }
             }
         )
