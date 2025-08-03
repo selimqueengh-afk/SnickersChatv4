@@ -96,9 +96,27 @@ fun ChatScreen(
         }
     }
     
+    // Typing status tracking
+    LaunchedEffect(messageText) {
+        if (messageText.isNotEmpty()) {
+            chatViewModel.setTypingStatus(chatRoomId, true)
+        } else {
+            chatViewModel.setTypingStatus(chatRoomId, false)
+        }
+    }
+    
+    // Clear typing status when leaving
+    DisposableEffect(Unit) {
+        onDispose {
+            chatViewModel.setTypingStatus(chatRoomId, false)
+        }
+    }
+    
     LaunchedEffect(chatState.messages.size) {
         if (chatState.messages.isNotEmpty()) {
             listState.animateScrollToItem(chatState.messages.size - 1)
+            // Mark messages as read when they are loaded
+            chatViewModel.markAllMessagesAsRead(chatRoomId)
         }
     }
     
@@ -245,6 +263,36 @@ fun ChatScreen(
             }
             
 
+        }
+        
+        // Typing indicator
+        if (chatState.isOtherUserTyping) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Yazıyor...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
         
         // Message input

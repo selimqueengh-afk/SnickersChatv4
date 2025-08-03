@@ -601,4 +601,21 @@ class FirebaseRepository {
         
         awaitClose { typingStatusRef.child(chatRoomId).removeEventListener(listener) }
     }
+    
+    fun getOnlineStatusFlow(userId: String): Flow<Boolean> = callbackFlow {
+        val listener = onlineStatusRef.child(userId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                    trySend(isOnline)
+                }
+                
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    // Handle error
+                }
+            }
+        )
+        
+        awaitClose { onlineStatusRef.child(userId).removeEventListener(listener) }
+    }
 }

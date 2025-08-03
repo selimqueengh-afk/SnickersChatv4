@@ -122,6 +122,40 @@ class ChatViewModel(
                 }
             }
         }
+        
+        // Start real-time listener for other user's online status from RTDB
+        viewModelScope.launch {
+            val otherUserId = _chatState.value.otherUserId
+            if (otherUserId != null) {
+                repository.getOnlineStatusFlow(otherUserId).collect { isOnline ->
+                    println("ChatViewModel: Real-time online status update: $isOnline")
+                    val currentOtherUser = _chatState.value.otherUser
+                    if (currentOtherUser != null) {
+                        _chatState.value = _chatState.value.copy(
+                            otherUser = currentOtherUser.copy(isOnline = isOnline)
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Start real-time listener for typing status
+        viewModelScope.launch {
+            repository.getTypingStatusFlow(chatRoomId).collect { typingUsers ->
+                println("ChatViewModel: Real-time typing status update: $typingUsers")
+                val currentUserId = getCurrentUserId()
+                val otherUserId = _chatState.value.otherUserId
+                
+                // Filter out current user's typing status
+                val otherUserTyping = typingUsers.any { (userId, isTyping) ->
+                    userId != currentUserId && isTyping
+                }
+                
+                _chatState.value = _chatState.value.copy(
+                    isOtherUserTyping = otherUserTyping
+                )
+            }
+        }
     }
     
     fun sendMessage(receiverId: String, content: String) {
@@ -140,6 +174,18 @@ class ChatViewModel(
                     _chatState.value = _chatState.value.copy(
                         error = exception.message ?: "Mesaj gönderilemedi"
                     )
+                }
+        }
+    }
+    
+    fun setTypingStatus(chatRoomId: String, isTyping: Boolean) {
+        viewModelScope.launch {
+            repository.setTypingStatus(chatRoomId, isTyping)
+                .onSuccess {
+                    println("ChatViewModel: Typing status updated: $isTyping")
+                }
+                .onFailure { exception ->
+                    println("ChatViewModel: Failed to update typing status: ${exception.message}")
                 }
         }
     }
