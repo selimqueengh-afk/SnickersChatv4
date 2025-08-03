@@ -217,8 +217,10 @@ class FirebaseRepository {
                 )
                 val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
                 println("Chat room created with ID: ${chatRoomRef.id}")
+                throw Exception("Chat room başarıyla oluşturuldu! ID: ${chatRoomRef.id}")
             } else {
                 println("Chat room already exists")
+                throw Exception("Chat room zaten mevcut!")
             }
             
             Result.success(Unit)
@@ -241,6 +243,8 @@ class FirebaseRepository {
     suspend fun getChatRooms(): Result<List<ChatRoom>> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("Getting chat rooms for user: $currentUserId")
+            
             val snapshot = chatRoomsCollection
                 .whereArrayContains("participants", currentUserId)
                 .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
@@ -248,8 +252,10 @@ class FirebaseRepository {
                 .await()
             
             val chatRooms = snapshot.documents.mapNotNull { it.toObject(ChatRoom::class.java) }
+            println("Found ${chatRooms.size} chat rooms in Firestore")
             Result.success(chatRooms)
         } catch (e: Exception) {
+            println("Error getting chat rooms: ${e.message}")
             Result.failure(e)
         }
     }

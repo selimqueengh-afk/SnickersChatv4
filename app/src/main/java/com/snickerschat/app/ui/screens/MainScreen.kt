@@ -108,6 +108,7 @@ fun ChatListScreen(
     val chatListState by chatListViewModel.chatListState.collectAsState()
     
     LaunchedEffect(Unit) {
+        println("ChatListScreen: Loading chat rooms")
         chatListViewModel.loadChatRooms()
     }
     

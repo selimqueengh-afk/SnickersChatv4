@@ -23,6 +23,7 @@ class ChatListViewModel(
             
             repository.getChatRooms()
                 .onSuccess { chatRooms ->
+                    println("Found ${chatRooms.size} chat rooms")
                     // Convert chat rooms to ChatRoomWithUser
                     val chatRoomsWithUser = mutableListOf<ChatRoomWithUser>()
                     for (chatRoom in chatRooms) {
@@ -35,6 +36,7 @@ class ChatListViewModel(
                             }
                     }
                     
+                    println("Converted to ${chatRoomsWithUser.size} ChatRoomWithUser")
                     _chatListState.value = _chatListState.value.copy(
                         chatRooms = chatRoomsWithUser,
                         isLoading = false
