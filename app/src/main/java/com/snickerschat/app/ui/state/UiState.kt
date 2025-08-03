@@ -30,7 +30,8 @@ data class ChatState(
     val messages: List<MessageWithUser> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isTyping: Boolean = false
+    val isTyping: Boolean = false,
+    val otherUserId: String? = null
 )
 
 data class MessageWithUser(

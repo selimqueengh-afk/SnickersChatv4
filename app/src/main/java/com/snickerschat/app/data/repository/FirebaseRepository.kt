@@ -305,6 +305,18 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun getChatRoom(chatRoomId: String): Result<ChatRoom> {
+        return try {
+            val doc = chatRoomsCollection.document(chatRoomId).get().await()
+            val chatRoom = doc.toObject(ChatRoom::class.java)
+                ?: throw Exception("Chat room not found")
+            
+            Result.success(chatRoom.copy(id = doc.id))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
     suspend fun getMessages(chatRoomId: String): Result<List<Message>> {
         return try {
             val snapshot = messagesCollection

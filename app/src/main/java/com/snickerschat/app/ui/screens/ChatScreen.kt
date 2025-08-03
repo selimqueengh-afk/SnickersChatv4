@@ -49,24 +49,18 @@ fun ChatScreen(
     val context = LocalContext.current
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     
-    // Get receiver ID from chat room participants
-    var receiverId by remember { mutableStateOf("") }
+    // Get receiver ID from chat state
+    val receiverId = chatState.otherUserId ?: ""
     
-    // Get other user info for the header
-    val otherUser = remember(chatState.messages) {
+    // Get other user info for the header - try from messages first, then from chat state
+    val otherUser = remember(chatState.messages, chatState.otherUserId) {
         chatState.messages.firstOrNull { !it.isFromCurrentUser }?.sender
     }
     
-    // Update receiver ID when messages are loaded
-    LaunchedEffect(chatState.messages) {
-        if (chatState.messages.isNotEmpty()) {
-            val firstMessage = chatState.messages.first()
-            receiverId = if (firstMessage.isFromCurrentUser) {
-                firstMessage.message.receiverId
-            } else {
-                firstMessage.message.senderId
-            }
-            println("ChatScreen: Receiver ID set to: $receiverId")
+    // Update receiver ID when chat state changes
+    LaunchedEffect(chatState.otherUserId) {
+        if (chatState.otherUserId != null) {
+            println("ChatScreen: Receiver ID set from chat state to: ${chatState.otherUserId}")
         }
     }
     

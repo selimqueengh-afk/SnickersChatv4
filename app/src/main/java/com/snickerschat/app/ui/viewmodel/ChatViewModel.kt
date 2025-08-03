@@ -21,32 +21,55 @@ class ChatViewModel(
         viewModelScope.launch {
             _chatState.value = _chatState.value.copy(isLoading = true, error = null)
             
-            repository.getMessages(chatRoomId)
-                .onSuccess { messages ->
-                    // Convert messages to MessageWithUser
-                    val messagesWithUser = mutableListOf<MessageWithUser>()
-                    for (message in messages) {
-                        repository.getUser(message.senderId)
-                            .onSuccess { user ->
-                                messagesWithUser.add(
-                                    MessageWithUser(
-                                        message = message,
-                                        sender = user,
-                                        isFromCurrentUser = message.senderId == getCurrentUserId()
-                                    )
-                                )
-                            }
+            // First load the chat room to get participants
+            repository.getChatRoom(chatRoomId)
+                .onSuccess { chatRoom ->
+                    println("ChatViewModel: Chat room loaded, participants: ${chatRoom.participants}")
+                    
+                    // Get the other user ID (not current user)
+                    val currentUserId = getCurrentUserId()
+                    val otherUserId = chatRoom.participants.find { it != currentUserId }
+                    
+                    if (otherUserId != null) {
+                        println("ChatViewModel: Other user ID: $otherUserId")
+                        // Store the other user ID for message sending
+                        _chatState.value = _chatState.value.copy(otherUserId = otherUserId)
                     }
                     
-                    _chatState.value = _chatState.value.copy(
-                        messages = messagesWithUser,
-                        isLoading = false
-                    )
+                    // Now load messages
+                    repository.getMessages(chatRoomId)
+                        .onSuccess { messages ->
+                            // Convert messages to MessageWithUser
+                            val messagesWithUser = mutableListOf<MessageWithUser>()
+                            for (message in messages) {
+                                repository.getUser(message.senderId)
+                                    .onSuccess { user ->
+                                        messagesWithUser.add(
+                                            MessageWithUser(
+                                                message = message,
+                                                sender = user,
+                                                isFromCurrentUser = message.senderId == currentUserId
+                                            )
+                                        )
+                                    }
+                            }
+                            
+                            _chatState.value = _chatState.value.copy(
+                                messages = messagesWithUser,
+                                isLoading = false
+                            )
+                        }
+                        .onFailure { exception ->
+                            _chatState.value = _chatState.value.copy(
+                                isLoading = false,
+                                error = exception.message ?: "Mesajlar yüklenemedi"
+                            )
+                        }
                 }
                 .onFailure { exception ->
                     _chatState.value = _chatState.value.copy(
                         isLoading = false,
-                        error = exception.message ?: "Mesajlar yüklenemedi"
+                        error = exception.message ?: "Sohbet yüklenemedi"
                     )
                 }
         }
