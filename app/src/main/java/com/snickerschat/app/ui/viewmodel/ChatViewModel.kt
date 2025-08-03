@@ -78,11 +78,13 @@ class ChatViewModel(
         }
     }
     
+    fun showError(message: String) {
+        _chatState.value = _chatState.value.copy(error = message)
+    }
+    
     fun clearError() {
         _chatState.value = _chatState.value.copy(error = null)
     }
-    
-
     
     private fun getCurrentUserId(): String? {
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid

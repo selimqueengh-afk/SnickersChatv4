@@ -55,6 +55,11 @@ fun ChatScreen(
         ""
     }
     
+    // Get other user info for the header
+    val otherUser = remember(chatState.messages) {
+        chatState.messages.firstOrNull { !it.isFromCurrentUser }?.sender
+    }
+    
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
     }
@@ -71,12 +76,30 @@ fun ChatScreen(
         // Top bar
         TopAppBar(
             title = { 
-                Text(
-                    text = "Sohbet",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
+                if (otherUser != null) {
+                    Column {
+                        Text(
+                            text = otherUser.username,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Text(
+                            text = if (otherUser.isOnline) "Çevrimiçi" else "Çevrimdışı",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Sohbet",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
-                )
+                }
             },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
@@ -92,6 +115,27 @@ fun ChatScreen(
                 titleContentColor = MaterialTheme.colorScheme.onPrimary
             )
         )
+        
+        // Error message
+        if (chatState.error != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = chatState.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
         
         // Messages
         Box(
@@ -210,23 +254,37 @@ fun ChatScreen(
                         if (messageText.trim().isNotEmpty()) {
                             // Get receiver ID from chat room participants
                             val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                            val receiverId = chatState.messages.firstOrNull()?.let { messageWithUser ->
-                                if (messageWithUser.isFromCurrentUser) {
-                                    messageWithUser.message.receiverId
+                            
+                            // Try to get receiver ID from existing messages first
+                            var receiverId = ""
+                            if (chatState.messages.isNotEmpty()) {
+                                val firstMessage = chatState.messages.first()
+                                receiverId = if (firstMessage.isFromCurrentUser) {
+                                    firstMessage.message.receiverId
                                 } else {
-                                    messageWithUser.message.senderId
+                                    firstMessage.message.senderId
                                 }
-                            } ?: ""
+                            }
+                            
+                            // If no messages exist, we need to get receiver ID from chat room
+                            if (receiverId.isEmpty()) {
+                                // For now, let's try to get it from the chat room ID
+                                // This is a temporary solution
+                                receiverId = chatRoomId // This won't work, we need the actual user ID
+                            }
                             
                             println("Sending message to: $receiverId")
                             println("Current user: $currentUserId")
                             println("Message: ${messageText.trim()}")
+                            println("Chat room ID: $chatRoomId")
                             
-                            if (receiverId.isNotEmpty() && receiverId != currentUserId) {
+                            if (receiverId.isNotEmpty() && receiverId != currentUserId && receiverId != chatRoomId) {
                                 chatViewModel.sendMessage(receiverId, messageText.trim())
                                 messageText = ""
                             } else {
                                 println("Invalid receiver ID or same as current user")
+                                // Show error message
+                                chatViewModel.showError("Mesaj gönderilemedi: Geçersiz alıcı")
                             }
                         }
                     },
