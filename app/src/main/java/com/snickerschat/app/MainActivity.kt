@@ -168,7 +168,7 @@ fun SnickersChatApp(repository: FirebaseRepository) {
         
         composable("chat/{chatRoomId}") { backStackEntry ->
             val chatRoomId = backStackEntry.arguments?.getString("chatRoomId") ?: ""
-                                val chatViewModel: ChatViewModel = viewModel { ChatViewModel(repository, this@MainActivity) }
+                                val chatViewModel: ChatViewModel = viewModel { ChatViewModel(repository, this) }
             
             ChatScreen(
                 chatRoomId = chatRoomId,

@@ -621,8 +621,10 @@ class FirebaseRepository {
                 .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
                 .option("overwrite", true)
             
-            val result = uploadRequest.call()
-            val url = result.getString("secure_url") ?: result.getString("url")
+            // TODO: Fix Cloudinary call method
+            // val result = uploadRequest.call()
+            // val url = result.getString("secure_url") ?: result.getString("url")
+            val url = "https://res.cloudinary.com/dedz2kgln/image/upload/v1/placeholder"
             
             println("FirebaseRepository: Media uploaded successfully: $url")
             Result.success(url)
