@@ -743,6 +743,7 @@ class FirebaseRepository {
                             val content = messageData["content"] as? String
                             val chatRoomId = messageData["chatRoomId"] as? String
                             val timestamp = messageData["timestamp"] as? Long
+                            val reactions = messageData["reactions"] as? List<String> ?: emptyList()
                             
                             // Only create message if all required fields are present
                             if (id != null && senderId != null && receiverId != null && content != null && chatRoomId != null && timestamp != null) {
@@ -753,7 +754,8 @@ class FirebaseRepository {
                                     content = content,
                                     timestamp = com.google.firebase.Timestamp(timestamp / 1000, ((timestamp % 1000) * 1000000).toInt()),
                                     isRead = messageData["isRead"] as? Boolean ?: false,
-                                    chatRoomId = chatRoomId
+                                    chatRoomId = chatRoomId,
+                                    reactions = reactions
                                 )
                                 messages.add(message)
                             }

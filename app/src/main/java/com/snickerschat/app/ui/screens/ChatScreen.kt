@@ -643,7 +643,7 @@ fun ChatScreen(
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
                                 // Send message with reply reference
                                 val finalMessage = if (replyingToMessage != null) {
-                                    "↩️ ${replyingToMessage?.sender?.username}: ${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
+                                    "REPLY_TO:${replyingToMessage?.message?.id}:${replyingToMessage?.sender?.username}:${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
                                 } else {
                                     messageText.trim()
                                 }
@@ -1084,15 +1084,138 @@ fun MessageItem(
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
-                Text(
-                    text = messageWithUser.message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isFromCurrentUser) {
-                        MaterialTheme.colorScheme.onPrimary
+                // Reply preview (if this is a reply)
+                if (messageWithUser.message.content.startsWith("REPLY_TO:")) {
+                    val replyParts = messageWithUser.message.content.split("\n\n")
+                    if (replyParts.size >= 2) {
+                        val replyInfo = replyParts[0].removePrefix("REPLY_TO:").split(":")
+                        if (replyInfo.size >= 3) {
+                            val replyId = replyInfo[0]
+                            val replyUsername = replyInfo[1]
+                            val replyContent = replyInfo[2]
+                            
+                            // Reply preview card
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isFromCurrentUser) {
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    }
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Reply indicator
+                                    Icon(
+                                        imageVector = Icons.Default.Reply,
+                                        contentDescription = "Yanıtla",
+                                        tint = if (isFromCurrentUser) {
+                                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        },
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    
+                                    // Reply line
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.dp)
+                                            .height(16.dp)
+                                            .background(
+                                                color = if (isFromCurrentUser) {
+                                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                                },
+                                                shape = RoundedCornerShape(0.5.dp)
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    
+                                    // Reply content
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = replyUsername,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isFromCurrentUser) {
+                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                            },
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = replyContent,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isFromCurrentUser) {
+                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            // Actual message content
+                            Text(
+                                text = replyParts[1],
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isFromCurrentUser) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        } else {
+                            // Fallback for malformed reply
+                            Text(
+                                text = messageWithUser.message.content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isFromCurrentUser) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        // Fallback for malformed reply
+                        Text(
+                            text = messageWithUser.message.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isFromCurrentUser) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
                     }
-                )
+                } else {
+                    // Normal message
+                    Text(
+                        text = messageWithUser.message.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isFromCurrentUser) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
