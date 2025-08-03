@@ -206,7 +206,9 @@ class FirebaseRepository {
                 .documents
                 .filter { doc ->
                     val chatRoom = doc.toObject(ChatRoom::class.java)
-                    chatRoom?.participants?.contains(request.receiverId) == true
+                    val containsReceiver = chatRoom?.participants?.contains(request.receiverId) == true
+                    println("Chat room ${doc.id}: participants=${chatRoom?.participants}, contains receiver: $containsReceiver")
+                    containsReceiver
                 }
             
             // Create chat room only if it doesn't exist
@@ -217,10 +219,8 @@ class FirebaseRepository {
                 )
                 val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
                 println("Chat room created with ID: ${chatRoomRef.id}")
-                throw Exception("Chat room başarıyla oluşturuldu! ID: ${chatRoomRef.id}")
             } else {
                 println("Chat room already exists")
-                throw Exception("Chat room zaten mevcut!")
             }
             
             Result.success(Unit)
@@ -251,7 +251,11 @@ class FirebaseRepository {
                 .get()
                 .await()
             
-            val chatRooms = snapshot.documents.mapNotNull { it.toObject(ChatRoom::class.java) }
+            val chatRooms = snapshot.documents.mapNotNull { doc ->
+                val chatRoom = doc.toObject(ChatRoom::class.java)
+                println("Chat room ${doc.id}: participants=${chatRoom?.participants}")
+                chatRoom
+            }
             println("Found ${chatRooms.size} chat rooms in Firestore")
             Result.success(chatRooms)
         } catch (e: Exception) {

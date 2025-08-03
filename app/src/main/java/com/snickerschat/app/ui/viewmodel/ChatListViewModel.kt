@@ -29,10 +29,15 @@ class ChatListViewModel(
                     for (chatRoom in chatRooms) {
                         val currentUserId = getCurrentUserId() ?: continue
                         val otherUserId = chatRoom.participants.find { it != currentUserId } ?: continue
+                        println("Getting user info for: $otherUserId")
                         
                         repository.getUser(otherUserId)
                             .onSuccess { user ->
+                                println("Found user: ${user.username}")
                                 chatRoomsWithUser.add(ChatRoomWithUser(chatRoom = chatRoom, otherUser = user))
+                            }
+                            .onFailure { error ->
+                                println("Failed to get user $otherUserId: ${error.message}")
                             }
                     }
                     
