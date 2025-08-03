@@ -3,6 +3,7 @@ package com.snickerschat.app.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.database.FirebaseDatabase
 import com.snickerschat.app.data.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -14,12 +15,18 @@ import java.util.*
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
+    private val rtdb = FirebaseDatabase.getInstance()
     
     // Collections
     private val usersCollection = firestore.collection("users")
     private val messagesCollection = firestore.collection("messages")
     private val chatRoomsCollection = firestore.collection("chat_rooms")
     private val friendRequestsCollection = firestore.collection("requests")
+    
+    // RTDB References for real-time features
+    private val onlineStatusRef = rtdb.getReference("online_status")
+    private val typingStatusRef = rtdb.getReference("typing_status")
+    private val messageReadRef = rtdb.getReference("message_read")
     
     // Authentication
     suspend fun signInAnonymously(): Result<String> {
@@ -399,6 +406,7 @@ class FirebaseRepository {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
             val now = com.google.firebase.Timestamp.now()
+            val nowMillis = System.currentTimeMillis()
             
             println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
             
@@ -412,13 +420,26 @@ class FirebaseRepository {
             println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages")
             
             for (messageDoc in messagesSnapshot.documents) {
+                val messageId = messageDoc.id
+                
+                // Update in Firestore
                 messageDoc.reference.update(
                     mapOf(
                         "isRead" to true,
                         "readAt" to now
                     )
                 ).await()
-                println("FirebaseRepository: Marked message ${messageDoc.id} as read")
+                
+                // Update in RTDB for real-time
+                messageReadRef.child(chatRoomId).child(messageId).setValue(
+                    mapOf(
+                        "readBy" to currentUserId,
+                        "readAt" to nowMillis,
+                        "timestamp" to nowMillis
+                    )
+                ).await()
+                
+                println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
             }
             
             Result.success(Unit)
@@ -431,18 +452,38 @@ class FirebaseRepository {
     suspend fun updateUserOnlineStatus(isOnline: Boolean): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = com.google.firebase.Timestamp.now()
+            val now = System.currentTimeMillis()
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
             
+            // Update in RTDB for real-time
+            if (isOnline) {
+                onlineStatusRef.child(currentUserId).setValue(
+                    mapOf(
+                        "isOnline" to true,
+                        "lastSeen" to null,
+                        "timestamp" to now
+                    )
+                ).await()
+            } else {
+                onlineStatusRef.child(currentUserId).setValue(
+                    mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to now,
+                        "timestamp" to now
+                    )
+                ).await()
+            }
+            
+            // Also update in Firestore for persistence
             usersCollection.document(currentUserId).update(
                 mapOf(
                     "isOnline" to isOnline,
-                    "lastSeen" to if (isOnline) null else now
+                    "lastSeen" to if (isOnline) null else com.google.firebase.Timestamp.now()
                 )
             ).await()
             
-            println("FirebaseRepository: Online status updated successfully")
+            println("FirebaseRepository: Online status updated successfully in RTDB and Firestore")
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error updating online status: ${e.message}")
@@ -507,5 +548,54 @@ class FirebaseRepository {
             }
         
         awaitClose { listener.remove() }
+    }
+    
+    // RTDB Methods for real-time features
+    
+    suspend fun setTypingStatus(chatRoomId: String, isTyping: Boolean): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            
+            if (isTyping) {
+                typingStatusRef.child(chatRoomId).child(currentUserId).setValue(
+                    mapOf(
+                        "isTyping" to true,
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                ).await()
+            } else {
+                typingStatusRef.child(chatRoomId).child(currentUserId).removeValue().await()
+            }
+            
+            println("FirebaseRepository: Typing status updated: $isTyping in chat: $chatRoomId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error updating typing status: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    fun getTypingStatusFlow(chatRoomId: String): Flow<Map<String, Boolean>> = callbackFlow {
+        val listener = typingStatusRef.child(chatRoomId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val typingUsers = mutableMapOf<String, Boolean>()
+                    for (child in snapshot.children) {
+                        val userId = child.key
+                        val isTyping = child.child("isTyping").getValue(Boolean::class.java) ?: false
+                        if (userId != null && isTyping) {
+                            typingUsers[userId] = true
+                        }
+                    }
+                    trySend(typingUsers)
+                }
+                
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    // Handle error
+                }
+            }
+        )
+        
+        awaitClose { typingStatusRef.child(chatRoomId).removeEventListener(listener) }
     }
 }
