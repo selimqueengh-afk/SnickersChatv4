@@ -441,7 +441,7 @@ class FirebaseRepository {
                 val messageId = child.key
                 val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
                 
-                if (messageData != null) {
+                if (messageData != null && messageId != null) {
                     val receiverId = messageData["receiverId"] as? String
                     val isRead = messageData["isRead"] as? Boolean ?: false
                     
