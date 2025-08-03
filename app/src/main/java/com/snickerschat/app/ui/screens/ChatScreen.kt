@@ -86,6 +86,7 @@ fun ChatScreen(
     
     // Update online status when entering chat
     LaunchedEffect(Unit) {
+        delay(500) // Wait a bit for auth to be ready
         chatViewModel.updateOnlineStatus(true)
     }
     
@@ -437,6 +438,13 @@ fun MessageItem(
                             } else {
                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                             }
+                        )
+                        
+                        // Debug: Show read status
+                        Text(
+                            text = if (messageWithUser.message.isRead) "✓✓" else "✓",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (messageWithUser.message.isRead) Color.Blue else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                         )
                     }
                 }

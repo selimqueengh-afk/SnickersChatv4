@@ -413,6 +413,7 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
             
+            // Get all unread messages in this chat room where current user is the receiver
             val messagesSnapshot = messagesCollection
                 .whereEqualTo("chatRoomId", chatRoomId)
                 .whereEqualTo("receiverId", currentUserId)
@@ -458,9 +459,12 @@ class FirebaseRepository {
             val now = System.currentTimeMillis()
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
+            println("FirebaseRepository: Current user ID: $currentUserId")
+            println("FirebaseRepository: Auth current user: ${auth.currentUser?.uid}")
             
             // Update in RTDB for real-time
             if (isOnline) {
+                println("FirebaseRepository: Setting user as online in RTDB")
                 onlineStatusRef.child(currentUserId).setValue(
                     mapOf(
                         "isOnline" to true,
@@ -477,7 +481,9 @@ class FirebaseRepository {
                         "timestamp" to now
                     )
                 )
+                println("FirebaseRepository: onDisconnect set up for user")
             } else {
+                println("FirebaseRepository: Setting user as offline in RTDB")
                 onlineStatusRef.child(currentUserId).setValue(
                     mapOf(
                         "isOnline" to false,
@@ -488,9 +494,11 @@ class FirebaseRepository {
                 
                 // Remove onDisconnect when user goes offline manually
                 onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
+                println("FirebaseRepository: onDisconnect removed for user")
             }
             
             // Also update in Firestore for persistence
+            println("FirebaseRepository: Updating user status in Firestore")
             usersCollection.document(currentUserId).update(
                 mapOf(
                     "isOnline" to isOnline,
@@ -502,6 +510,7 @@ class FirebaseRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error updating online status: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }

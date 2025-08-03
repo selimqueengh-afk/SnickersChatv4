@@ -106,6 +106,17 @@ class ChatViewModel(
                                 )
                             )
                         }
+                        .onFailure { exception ->
+                            println("ChatViewModel: Failed to get user for message: ${exception.message}")
+                            // Add message without user info
+                            messagesWithUser.add(
+                                MessageWithUser(
+                                    message = message,
+                                    sender = User(id = message.senderId, username = "Unknown"),
+                                    isFromCurrentUser = message.senderId == currentUserId
+                                )
+                            )
+                        }
                 }
                 
                 _chatState.value = _chatState.value.copy(messages = messagesWithUser)
@@ -114,8 +125,7 @@ class ChatViewModel(
         
         // Start real-time listener for other user's online status
         viewModelScope.launch {
-            val otherUserId = _chatState.value.otherUserId
-            if (otherUserId != null) {
+            _chatState.value.otherUserId?.let { otherUserId ->
                 repository.getUserFlow(otherUserId).collect { user ->
                     println("ChatViewModel: Real-time user update: ${user.username} isOnline: ${user.isOnline}")
                     _chatState.value = _chatState.value.copy(otherUser = user)
@@ -125,8 +135,7 @@ class ChatViewModel(
         
         // Start real-time listener for other user's online status from RTDB
         viewModelScope.launch {
-            val otherUserId = _chatState.value.otherUserId
-            if (otherUserId != null) {
+            _chatState.value.otherUserId?.let { otherUserId ->
                 repository.getOnlineStatusFlow(otherUserId).collect { isOnline ->
                     println("ChatViewModel: Real-time online status update: $isOnline")
                     val currentOtherUser = _chatState.value.otherUser
