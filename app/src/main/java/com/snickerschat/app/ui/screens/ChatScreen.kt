@@ -80,7 +80,7 @@ fun ChatScreen(
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
         // Mark all messages as read when entering chat
-        delay(1000) // Wait a bit for messages to load
+        delay(2000) // Wait a bit more for messages to load
         chatViewModel.markAllMessagesAsRead(chatRoomId)
     }
     
@@ -397,41 +397,48 @@ fun MessageItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = dateFormat.format(messageWithUser.message.timestamp.toDate()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isFromCurrentUser) {
-                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        }
-                    )
-                    
                     if (isFromCurrentUser) {
-                        Icon(
-                            imageVector = if (messageWithUser.message.isRead) {
-                                Icons.Default.DoneAll
-                            } else {
-                                Icons.Default.Done
-                            },
-                            contentDescription = if (messageWithUser.message.isRead) {
-                                "Okundu (${messageWithUser.message.id})"
-                            } else {
-                                "Gönderildi (${messageWithUser.message.id})"
-                            },
-                            modifier = Modifier.size(16.dp),
-                            tint = if (messageWithUser.message.isRead) {
-                                Color.Blue // Mavi renk for read messages
-                            } else {
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                        // WhatsApp style message status
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = dateFormat.format(messageWithUser.message.timestamp.toDate()),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            )
+                            
+                            // Message status icons (WhatsApp style)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                if (messageWithUser.message.isRead) {
+                                    // Double blue check (read)
+                                    Icon(
+                                        imageVector = Icons.Default.DoneAll,
+                                        contentDescription = "Okundu",
+                                        modifier = Modifier.size(14.dp),
+                                        tint = Color.Blue
+                                    )
+                                } else {
+                                    // Single gray check (sent)
+                                    Icon(
+                                        imageVector = Icons.Default.Done,
+                                        contentDescription = "Gönderildi",
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
-                        )
-                        
-                        // Debug: Show read status with different symbols
+                        }
+                    } else {
+                        // For received messages, only show time
                         Text(
-                            text = if (messageWithUser.message.isRead) "✓✓" else "✓",
+                            text = dateFormat.format(messageWithUser.message.timestamp.toDate()),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (messageWithUser.message.isRead) Color.Blue else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
                 }

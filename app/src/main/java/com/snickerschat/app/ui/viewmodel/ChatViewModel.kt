@@ -135,16 +135,18 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status from RTDB
+        // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
         viewModelScope.launch {
             _chatState.value.otherUserId?.let { otherUserId ->
+                println("ChatViewModel: Starting online status listener for user: $otherUserId")
                 repository.getOnlineStatusFlow(otherUserId).collect { isOnline ->
-                    println("ChatViewModel: Real-time online status update: $isOnline")
+                    println("ChatViewModel: Real-time online status update for $otherUserId: $isOnline")
                     val currentOtherUser = _chatState.value.otherUser
                     if (currentOtherUser != null) {
                         _chatState.value = _chatState.value.copy(
                             otherUser = currentOtherUser.copy(isOnline = isOnline)
                         )
+                        println("ChatViewModel: Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline")
                     }
                 }
             }

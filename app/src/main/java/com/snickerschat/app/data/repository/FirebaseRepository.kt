@@ -628,20 +628,25 @@ class FirebaseRepository {
     }
     
     fun getOnlineStatusFlow(userId: String): Flow<Boolean> = callbackFlow {
+        println("FirebaseRepository: Starting online status listener for user: $userId")
         val listener = onlineStatusRef.child(userId).addValueEventListener(
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                     val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                    println("FirebaseRepository: Online status changed for user $userId: $isOnline")
                     trySend(isOnline)
                 }
                 
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                    // Handle error
+                    println("FirebaseRepository: Online status listener cancelled for user $userId: ${error.message}")
                 }
             }
         )
         
-        awaitClose { onlineStatusRef.child(userId).removeEventListener(listener) }
+        awaitClose { 
+            println("FirebaseRepository: Removing online status listener for user: $userId")
+            onlineStatusRef.child(userId).removeEventListener(listener) 
+        }
     }
     
     fun getMessageReadStatusFlow(chatRoomId: String): Flow<Map<String, Boolean>> = callbackFlow {
