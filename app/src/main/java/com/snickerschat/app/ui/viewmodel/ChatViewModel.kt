@@ -334,6 +334,20 @@ class ChatViewModel(
         }
     }
     
+    fun addReactionToMessage(messageId: String, emoji: String) {
+        viewModelScope.launch {
+            repository.addReactionToMessage(messageId, emoji)
+                .onSuccess {
+                    println("ChatViewModel: Reaction added successfully: $emoji to message: $messageId")
+                }
+                .onFailure { exception ->
+                    _chatState.value = _chatState.value.copy(
+                        error = "Tepki eklenemedi: ${exception.message}"
+                    )
+                }
+        }
+    }
+    
     private fun getCurrentUserId(): String? {
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     }

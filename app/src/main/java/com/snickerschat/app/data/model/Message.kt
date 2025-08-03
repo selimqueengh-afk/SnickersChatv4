@@ -12,7 +12,9 @@ data class Message(
     val timestamp: Timestamp = Timestamp.now(),
     val isRead: Boolean = false,
     val isDeleted: Boolean = false,
-    val chatRoomId: String = ""
+    val chatRoomId: String = "",
+    val reactions: List<String> = emptyList(),
+    val replyTo: String? = null
 )
 
 enum class MessageStatus {

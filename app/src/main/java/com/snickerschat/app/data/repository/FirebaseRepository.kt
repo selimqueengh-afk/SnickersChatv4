@@ -509,13 +509,20 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Deleting message: $messageId")
             
-            // Delete from Firestore
-            messagesCollection.document(messageId).delete().await()
+            // Delete from Firestore - find message by ID
+            val query = messagesCollection.whereEqualTo("id", messageId)
+            val querySnapshot = query.get().await()
+            
+            for (document in querySnapshot.documents) {
+                document.reference.delete().await()
+                println("FirebaseRepository: Deleted message from Firestore: ${document.id}")
+            }
             
             // Delete from RTDB
             messageReadRef.orderByChild("id").equalTo(messageId).get().await().let { snapshot ->
                 for (child in snapshot.children) {
                     child.ref.removeValue().await()
+                    println("FirebaseRepository: Deleted message from RTDB: ${child.key}")
                 }
             }
             
@@ -523,6 +530,51 @@ class FirebaseRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error deleting message: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun addReactionToMessage(messageId: String, emoji: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            
+            println("FirebaseRepository: Adding reaction: $emoji to message: $messageId")
+            
+            // Find message in Firestore
+            val query = messagesCollection.whereEqualTo("id", messageId)
+            val querySnapshot = query.get().await()
+            
+            for (document in querySnapshot.documents) {
+                val currentReactions = document.get("reactions") as? List<String> ?: emptyList()
+                val updatedReactions = if (currentReactions.contains(emoji)) {
+                    currentReactions - emoji // Remove if already exists
+                } else {
+                    currentReactions + emoji // Add if doesn't exist
+                }
+                
+                document.reference.update("reactions", updatedReactions).await()
+                println("FirebaseRepository: Updated reactions in Firestore: $updatedReactions")
+            }
+            
+            // Update in RTDB
+            messageReadRef.orderByChild("id").equalTo(messageId).get().await().let { snapshot ->
+                for (child in snapshot.children) {
+                    val currentReactions = child.child("reactions").getValue(object : com.google.firebase.database.GenericTypeIndicator<List<String>>() {}) ?: emptyList()
+                    val updatedReactions = if (currentReactions.contains(emoji)) {
+                        currentReactions - emoji
+                    } else {
+                        currentReactions + emoji
+                    }
+                    
+                    child.child("reactions").ref.setValue(updatedReactions).await()
+                    println("FirebaseRepository: Updated reactions in RTDB: $updatedReactions")
+                }
+            }
+            
+            println("FirebaseRepository: Reaction added successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error adding reaction: ${e.message}")
             Result.failure(e)
         }
     }

@@ -39,6 +39,7 @@ import android.content.Context
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snickerschat.app.R
@@ -64,6 +65,9 @@ fun ChatScreen(
     val context = LocalContext.current
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     val scope = rememberCoroutineScope()
+    
+    // Reply state
+    var replyingToMessage by remember { mutableStateOf<MessageWithUser?>(null) }
     
     // Dialog states
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -434,8 +438,7 @@ fun ChatScreen(
                             },
                             onReply = {
                                 // Swipe to reply
-                                selectedMessageForReply = messageWithUser
-                                showReplyDialog = true
+                                replyingToMessage = messageWithUser
                             },
                             onReaction = {
                                 // Double tap for reaction
@@ -520,6 +523,77 @@ fun ChatScreen(
             }
         }
         
+        // Reply preview (WhatsApp style)
+        if (replyingToMessage != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Reply indicator
+                    Icon(
+                        imageVector = Icons.Default.Reply,
+                        contentDescription = "Yanıtla",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Reply line
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(24.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(1.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Reply content
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = replyingToMessage?.user?.username ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = replyingToMessage?.message?.content ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    
+                    // Close button
+                    IconButton(
+                        onClick = { replyingToMessage = null },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "İptal",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
         // Message input
         Card(
             modifier = Modifier
@@ -567,8 +641,16 @@ fun ChatScreen(
                             println("Chat room ID: $chatRoomId")
                             
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
-                                chatViewModel.sendMessage(receiverId, messageText.trim())
+                                // Send message with reply reference
+                                val finalMessage = if (replyingToMessage != null) {
+                                    "↩️ ${replyingToMessage?.user?.username}: ${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
+                                } else {
+                                    messageText.trim()
+                                }
+                                
+                                chatViewModel.sendMessage(receiverId, finalMessage)
                                 messageText = ""
+                                replyingToMessage = null // Clear reply state
                             } else {
                                 println("Invalid receiver ID or same as current user")
                                 println("Receiver ID: '$receiverId'")
@@ -673,8 +755,7 @@ fun ChatScreen(
                                     indication = null
                                 ) {
                                     // Implement reply feature
-                                    selectedMessageForReply = messageWithUser
-                                    showReplyDialog = true
+                                    replyingToMessage = messageWithUser
                                     showMessageOptionsDialog = false
                                     selectedMessageForOptions = null
                                 }
@@ -855,8 +936,10 @@ fun ChatScreen(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    // TODO: Add reaction to message
-                                    chatViewModel.showError("Tepki eklendi: $emoji")
+                                    // Add reaction to message
+                                    selectedMessageForReaction?.let { messageWithUser ->
+                                        chatViewModel.addReactionToMessage(messageWithUser.message.id, emoji)
+                                    }
                                     showReactionDialog = false
                                     selectedMessageForReaction = null
                                 }
@@ -1061,6 +1144,29 @@ fun MessageItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
+                }
+            }
+        }
+        
+        // Reaction display (WhatsApp style)
+        if (messageWithUser.message.reactions?.isNotEmpty() == true) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .align(if (isFromCurrentUser) Alignment.End else Alignment.Start),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                messageWithUser.message.reactions?.forEach { reaction ->
+                    Text(
+                        text = reaction,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
                 }
             }
         }
