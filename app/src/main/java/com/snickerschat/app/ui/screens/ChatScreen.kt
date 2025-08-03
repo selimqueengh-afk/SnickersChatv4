@@ -3,7 +3,6 @@ package com.snickerschat.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,14 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Reply
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -343,8 +335,7 @@ fun MessageItem(
         Card(
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .padding(vertical = 2.dp)
-                .clickable { onLongClick() },
+                .padding(vertical = 2.dp),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -421,80 +412,5 @@ fun MessageItem(
                 modifier = Modifier.padding(start = 12.dp, top = 2.dp)
             )
         }
-    }
-}
-
-// Additional composables for message actions
-@Composable
-fun MessageActionButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-fun MessageContextMenu(
-    messageWithUser: MessageWithUser,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit,
-    onReply: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .padding(8.dp)
-    ) {
-        MessageActionButton(
-            icon = Icons.Default.ContentCopy,
-            contentDescription = "Kopyala",
-            onClick = onCopy,
-            modifier = Modifier.clickable { onCopy() }
-        )
-        
-        MessageActionButton(
-            icon = Icons.Default.Reply,
-            contentDescription = "Yanıtla",
-            onClick = onReply,
-            modifier = Modifier.clickable { onReply() }
-        )
-        
-        if (messageWithUser.isFromCurrentUser) {
-            MessageActionButton(
-                icon = Icons.Default.Delete,
-                contentDescription = "Sil",
-                onClick = onDelete,
-                modifier = Modifier.clickable { onDelete() }
-            )
-        }
-    }
-}
-
-@Composable
-fun AnimatedMessageVisibility(
-    visible: Boolean,
-    content: @Composable () -> Unit
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        content()
     }
 }
