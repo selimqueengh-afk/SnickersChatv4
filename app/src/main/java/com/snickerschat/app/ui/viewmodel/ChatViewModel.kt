@@ -18,7 +18,6 @@ import android.content.Context
 import androidx.core.content.ContextCompat
 import com.snickerschat.app.data.model.MediaType
 import android.content.ContentResolver
-import android.net.Uri
 
 class ChatViewModel(
     private val repository: FirebaseRepository,
@@ -379,12 +378,17 @@ class ChatViewModel(
         }
     }
     
-    private fun sendMessageWithMedia(receiverId: String, content: String, mediaUrl: String, mediaType: MediaType) {
+    private fun sendMessageWithMedia(content: String, mediaUrl: String, mediaType: MediaType) {
         viewModelScope.launch {
             try {
-                // Create message with media
-                val messageContent = "$content\n$mediaUrl"
-                sendMessage(receiverId, messageContent)
+                val receiverId = _chatState.value.otherUserId
+                if (receiverId != null) {
+                    // Create message with media
+                    val messageContent = "$content\n$mediaUrl"
+                    sendMessage(receiverId, messageContent)
+                } else {
+                    showError("Alıcı bulunamadı")
+                }
             } catch (e: Exception) {
                 showError("Medya mesajı gönderilirken hata: ${e.message}")
             }
@@ -408,7 +412,7 @@ class ChatViewModel(
                 repository.uploadMedia(file, MediaType.IMAGE)
                     .onSuccess { url ->
                         // Send message with media
-                        sendMessageWithMedia(receiverId, "📸 Fotoğraf", url, MediaType.IMAGE)
+                        sendMessageWithMedia("📸 Fotoğraf", url, MediaType.IMAGE)
                     }
                     .onFailure { exception ->
                         showError("Fotoğraf yüklenirken hata: ${exception.message}")
@@ -435,7 +439,7 @@ class ChatViewModel(
                 repository.uploadMedia(file, MediaType.IMAGE)
                     .onSuccess { url ->
                         // Send message with media
-                        sendMessageWithMedia(receiverId, "🖼️ Resim", url, MediaType.IMAGE)
+                        sendMessageWithMedia("🖼️ Resim", url, MediaType.IMAGE)
                     }
                     .onFailure { exception ->
                         showError("Resim yüklenirken hata: ${exception.message}")
@@ -453,7 +457,7 @@ class ChatViewModel(
                 repository.uploadMedia(audioFile, MediaType.AUDIO)
                     .onSuccess { url ->
                         // Send message with media
-                        sendMessageWithMedia(receiverId, "🎵 Sesli Mesaj", url, MediaType.AUDIO)
+                        sendMessageWithMedia("🎵 Sesli Mesaj", url, MediaType.AUDIO)
                     }
                     .onFailure { exception ->
                         showError("Sesli mesaj yüklenirken hata: ${exception.message}")
@@ -483,7 +487,7 @@ class ChatViewModel(
                 repository.uploadMedia(file, MediaType.FILE)
                     .onSuccess { url ->
                         // Send message with media
-                        sendMessageWithMedia(receiverId, "📎 $fileName", url, MediaType.FILE)
+                        sendMessageWithMedia("📎 $fileName", url, MediaType.FILE)
                     }
                     .onFailure { exception ->
                         showError("Dosya yüklenirken hata: ${exception.message}")

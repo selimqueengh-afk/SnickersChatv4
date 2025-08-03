@@ -622,7 +622,7 @@ class FirebaseRepository {
                 .option("overwrite", true)
             
             val result = uploadRequest.call()
-            val url = result.getString("secure_url")
+            val url = result.getString("secure_url") ?: result.getString("url")
             
             println("FirebaseRepository: Media uploaded successfully: $url")
             Result.success(url)
