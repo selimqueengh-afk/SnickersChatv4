@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import android.net.Uri
+import android.media.MediaRecorder
+import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.remember
@@ -88,12 +90,13 @@ fun ChatScreen(
     var showMediaPickerDialog by remember { mutableStateOf(false) }
     
     // Media picker launchers
+    var cameraPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) {
-            // TODO: Handle camera photo with actual file
-            chatViewModel.showError("Kamera fotoğrafı işleme yakında eklenecek!")
+        if (success && cameraPhotoUri != null) {
+            chatViewModel.handleCameraPhoto(cameraPhotoUri!!)
         }
     }
     
@@ -104,6 +107,10 @@ fun ChatScreen(
             chatViewModel.handleGallerySelection(it)
         }
     }
+    
+    var isRecording by remember { mutableStateOf(false) }
+    var audioRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
+    var audioFile by remember { mutableStateOf<File?>(null) }
     
     val audioRecorderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -122,6 +129,49 @@ fun ChatScreen(
     
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
+    
+    // Audio recording functions
+    fun startAudioRecording() {
+        try {
+            audioFile = File.createTempFile("audio_", ".mp3", context.cacheDir)
+            audioRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(audioFile?.absolutePath)
+                prepare()
+                start()
+            }
+            isRecording = true
+            println("Audio recording started")
+        } catch (e: Exception) {
+            println("Error starting audio recording: ${e.message}")
+            chatViewModel.showError("Ses kaydı başlatılamadı: ${e.message}")
+        }
+    }
+    
+    fun stopAudioRecording() {
+        try {
+            audioRecorder?.apply {
+                stop()
+                release()
+            }
+            audioRecorder = null
+            isRecording = false
+            
+            audioFile?.let { file ->
+                if (file.exists() && file.length() > 0) {
+                    chatViewModel.handleAudioRecording(file)
+                } else {
+                    chatViewModel.showError("Ses kaydı boş veya hatalı")
+                }
+            }
+            println("Audio recording stopped")
+        } catch (e: Exception) {
+            println("Error stopping audio recording: ${e.message}")
+            chatViewModel.showError("Ses kaydı durdurulamadı: ${e.message}")
+        }
+    }
     
     // Get other user info for the header - from chat state with real-time updates
     var otherUser by remember { mutableStateOf(chatState.otherUser) }
@@ -981,6 +1031,7 @@ fun ChatScreen(
                                         "${context.packageName}.fileprovider",
                                         photoFile
                                     )
+                                    cameraPhotoUri = photoUri
                                     cameraLauncher.launch(photoUri)
                                     showMediaPickerDialog = false
                                 }
@@ -1001,10 +1052,13 @@ fun ChatScreen(
                             MediaOptionCard(
                                 icon = Icons.Default.Mic,
                                 title = "Sesli Mesaj",
-                                subtitle = "Ses kaydet",
+                                subtitle = if (isRecording) "Kaydediliyor..." else "Ses kaydet",
                                 onClick = {
-                                    // TODO: Implement audio recording
-                                    chatViewModel.showError("Sesli mesaj yakında eklenecek!")
+                                    if (!isRecording) {
+                                        startAudioRecording()
+                                    } else {
+                                        stopAudioRecording()
+                                    }
                                     showMediaPickerDialog = false
                                 }
                             )

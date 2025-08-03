@@ -610,12 +610,22 @@ class FirebaseRepository {
         return try {
             println("FirebaseRepository: Uploading media: ${file.name}, type: $mediaType")
             
-            // For now, return a placeholder URL
-            // TODO: Implement actual Cloudinary upload
-            val placeholderUrl = "https://res.cloudinary.com/dedz2kgln/image/upload/v1/placeholder"
+            // Cloudinary upload
+            val uploadRequest = MediaManager.get().upload(file.absolutePath)
+                .option("resource_type", when(mediaType) {
+                    MediaType.IMAGE -> "image"
+                    MediaType.AUDIO -> "video" // Cloudinary uses video for audio
+                    MediaType.VIDEO -> "video"
+                    MediaType.FILE -> "raw"
+                })
+                .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
+                .option("overwrite", true)
             
-            println("FirebaseRepository: Media upload placeholder: $placeholderUrl")
-            Result.success(placeholderUrl)
+            val result = uploadRequest.call()
+            val url = result.getString("secure_url")
+            
+            println("FirebaseRepository: Media uploaded successfully: $url")
+            Result.success(url)
         } catch (e: Exception) {
             println("FirebaseRepository: Error uploading media: ${e.message}")
             Result.failure(e)

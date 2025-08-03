@@ -14,9 +14,15 @@ import kotlinx.coroutines.delay
 import com.snickerschat.app.data.model.Message
 import android.net.Uri
 import java.io.File
+import android.content.Context
+import androidx.core.content.ContextCompat
+import com.snickerschat.app.data.model.MediaType
+import android.content.ContentResolver
+import android.net.Uri
 
 class ChatViewModel(
-    private val repository: FirebaseRepository
+    private val repository: FirebaseRepository,
+    private val context: Context
 ) : ViewModel() {
     
     private val _chatState = MutableStateFlow(ChatState())
@@ -354,12 +360,59 @@ class ChatViewModel(
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     }
     
+    // Extension function to get file name from URI
+    private fun ContentResolver.getFileName(uri: Uri): String? {
+        return when (uri.scheme) {
+            "content" -> {
+                val cursor = query(uri, null, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val displayNameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (displayNameIndex != -1) {
+                            it.getString(displayNameIndex)
+                        } else null
+                    } else null
+                }
+            }
+            "file" -> uri.lastPathSegment
+            else -> null
+        }
+    }
+    
+    private fun sendMessageWithMedia(receiverId: String, content: String, mediaUrl: String, mediaType: MediaType) {
+        viewModelScope.launch {
+            try {
+                // Create message with media
+                val messageContent = "$content\n$mediaUrl"
+                sendMessage(receiverId, messageContent)
+            } catch (e: Exception) {
+                showError("Medya mesajı gönderilirken hata: ${e.message}")
+            }
+        }
+    }
+    
     // Media handling functions
     fun handleCameraPhoto(photoUri: Uri) {
         viewModelScope.launch {
             try {
-                // TODO: Upload photo to Cloudinary and send message
-                showError("Kamera fotoğrafı işleme yakında eklenecek!")
+                // Convert URI to File
+                val inputStream = context.contentResolver.openInputStream(photoUri)
+                val file = File.createTempFile("camera_photo_", ".jpg", context.cacheDir)
+                inputStream?.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                
+                // Upload to Cloudinary
+                repository.uploadMedia(file, MediaType.IMAGE)
+                    .onSuccess { url ->
+                        // Send message with media
+                        sendMessageWithMedia(receiverId, "📸 Fotoğraf", url, MediaType.IMAGE)
+                    }
+                    .onFailure { exception ->
+                        showError("Fotoğraf yüklenirken hata: ${exception.message}")
+                    }
             } catch (e: Exception) {
                 showError("Fotoğraf işlenirken hata: ${e.message}")
             }
@@ -369,8 +422,24 @@ class ChatViewModel(
     fun handleGallerySelection(uri: Uri) {
         viewModelScope.launch {
             try {
-                // TODO: Upload image to Cloudinary and send message
-                showError("Galeri seçimi işleme yakında eklenecek!")
+                // Convert URI to File
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val file = File.createTempFile("gallery_image_", ".jpg", context.cacheDir)
+                inputStream?.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                
+                // Upload to Cloudinary
+                repository.uploadMedia(file, MediaType.IMAGE)
+                    .onSuccess { url ->
+                        // Send message with media
+                        sendMessageWithMedia(receiverId, "🖼️ Resim", url, MediaType.IMAGE)
+                    }
+                    .onFailure { exception ->
+                        showError("Resim yüklenirken hata: ${exception.message}")
+                    }
             } catch (e: Exception) {
                 showError("Galeri seçimi işlenirken hata: ${e.message}")
             }
@@ -380,8 +449,15 @@ class ChatViewModel(
     fun handleAudioRecording(audioFile: File) {
         viewModelScope.launch {
             try {
-                // TODO: Upload audio to Cloudinary and send message
-                showError("Sesli mesaj işleme yakında eklenecek!")
+                // Upload to Cloudinary
+                repository.uploadMedia(audioFile, MediaType.AUDIO)
+                    .onSuccess { url ->
+                        // Send message with media
+                        sendMessageWithMedia(receiverId, "🎵 Sesli Mesaj", url, MediaType.AUDIO)
+                    }
+                    .onFailure { exception ->
+                        showError("Sesli mesaj yüklenirken hata: ${exception.message}")
+                    }
             } catch (e: Exception) {
                 showError("Sesli mesaj işlenirken hata: ${e.message}")
             }
@@ -391,8 +467,27 @@ class ChatViewModel(
     fun handleFileSelection(uri: Uri) {
         viewModelScope.launch {
             try {
-                // TODO: Upload file to Cloudinary and send message
-                showError("Dosya işleme yakında eklenecek!")
+                // Get file name from URI
+                val fileName = context.contentResolver.getFileName(uri) ?: "unknown_file"
+                
+                // Convert URI to File
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val file = File.createTempFile("file_", "_$fileName", context.cacheDir)
+                inputStream?.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                
+                // Upload to Cloudinary
+                repository.uploadMedia(file, MediaType.FILE)
+                    .onSuccess { url ->
+                        // Send message with media
+                        sendMessageWithMedia(receiverId, "📎 $fileName", url, MediaType.FILE)
+                    }
+                    .onFailure { exception ->
+                        showError("Dosya yüklenirken hata: ${exception.message}")
+                    }
             } catch (e: Exception) {
                 showError("Dosya işlenirken hata: ${e.message}")
             }
