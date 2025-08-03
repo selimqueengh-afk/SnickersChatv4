@@ -114,63 +114,224 @@ fun ChatScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top bar
-        TopAppBar(
-            title = {
-                val user = otherUser
-                if (user != null) {
-                    Column {
-                        Text(
-                            text = user.username,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimary
+        // Modern Top Bar
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back Button
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape
                         )
-                        Text(
-                            text = if (user.isOnline) {
-                                "🟢 Çevrimiçi"
-                            } else {
-                                user.lastSeen?.let { lastSeen ->
-                                    val now = com.google.firebase.Timestamp.now()
-                                    val diffInSeconds = now.seconds - lastSeen.seconds
-                                    val timeText = when {
-                                        diffInSeconds < 60 -> "Az önce"
-                                        diffInSeconds < 3600 -> "${diffInSeconds / 60} dakika önce"
-                                        diffInSeconds < 86400 -> "${diffInSeconds / 3600} saat önce"
-                                        else -> "${diffInSeconds / 86400} gün önce"
-                                    }
-                                    "🔴 Çevrimdışı • Son görülme: $timeText"
-                                } ?: "🔴 Çevrimdışı"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "Sohbet",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Geri",
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                titleContentColor = MaterialTheme.colorScheme.onPrimary
-            )
-        )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                // User Info
+                val user = otherUser
+                if (user != null) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // User Avatar
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = if (user.isOnline) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = user.username.take(1).uppercase(),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = if (user.isOnline) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                            
+                            // Online indicator
+                            if (user.isOnline) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            shape = CircleShape
+                                        )
+                                        .align(Alignment.BottomEnd)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        // User Details
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = user.username,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Status indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            color = if (user.isOnline) {
+                                                MaterialTheme.colorScheme.tertiary
+                                            } else {
+                                                MaterialTheme.colorScheme.outline
+                                            },
+                                            shape = CircleShape
+                                        )
+                                )
+                                
+                                Text(
+                                    text = if (user.isOnline) {
+                                        "Çevrimiçi"
+                                    } else {
+                                        user.lastSeen?.let { lastSeen ->
+                                            val now = com.google.firebase.Timestamp.now()
+                                            val diffInSeconds = now.seconds - lastSeen.seconds
+                                            val timeText = when {
+                                                diffInSeconds < 60 -> "Az önce"
+                                                diffInSeconds < 3600 -> "${diffInSeconds / 60} dakika önce"
+                                                diffInSeconds < 86400 -> "${diffInSeconds / 3600} saat önce"
+                                                else -> "${diffInSeconds / 86400} gün önce"
+                                            }
+                                            "Son görülme: $timeText"
+                                        } ?: "Çevrimdışı"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (user.isOnline) {
+                                        MaterialTheme.colorScheme.tertiary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Loading state
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Column {
+                            Text(
+                                text = "Yükleniyor...",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Kullanıcı bilgileri alınıyor",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                // Action Buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = { /* TODO: Video call */ },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VideoCall,
+                            contentDescription = "Video arama",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = { /* TODO: Voice call */ },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Sesli arama",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
         
         // Error message
         chatState.error?.let { error ->
