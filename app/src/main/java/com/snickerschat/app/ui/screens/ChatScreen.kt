@@ -60,6 +60,9 @@ fun ChatScreen(
     // Update other user info when chat state changes
     LaunchedEffect(chatState.otherUser) {
         otherUser = chatState.otherUser
+        println("ChatScreen: DEBUG - otherUser updated: ${chatState.otherUser?.username}")
+        println("ChatScreen: DEBUG - otherUser isOnline: ${chatState.otherUser?.isOnline}")
+        println("ChatScreen: DEBUG - otherUser lastSeen: ${chatState.otherUser?.lastSeen}")
     }
     
     // Real-time listener for other user's online status

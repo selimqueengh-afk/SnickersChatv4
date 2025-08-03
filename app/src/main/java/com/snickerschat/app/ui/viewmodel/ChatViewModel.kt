@@ -125,55 +125,58 @@ class ChatViewModel(
             }
         }
         
-        // Start real-time listener for other user's online status from RTDB (with otherUserId changes)
+        // Start real-time listener for other user's online status from RTDB
         viewModelScope.launch {
-            _chatState.value.otherUserId?.let { otherUserId ->
-                println("ChatViewModel: DEBUG - Starting online status listener for user: $otherUserId")
-                println("ChatViewModel: DEBUG - Current user: ${getCurrentUserId()}")
-                println("ChatViewModel: DEBUG - Other user ID: $otherUserId")
+            // Wait for otherUser to be loaded
+            while (_chatState.value.otherUser == null) {
+                println("ChatViewModel: DEBUG - Waiting for otherUser to be loaded...")
+                delay(100)
+            }
+            
+            println("ChatViewModel: DEBUG - Starting online status listener for user: $otherUserId")
+            println("ChatViewModel: DEBUG - Current user: ${getCurrentUserId()}")
+            println("ChatViewModel: DEBUG - Other user ID: $otherUserId")
+            println("ChatViewModel: DEBUG - Other user loaded: ${_chatState.value.otherUser?.username}")
+            
+            repository.getOnlineStatusFlow(otherUserId).collect { statusData ->
+                val isOnline = statusData["isOnline"] as? Boolean ?: false
+                val lastSeenValue = statusData["lastSeen"]
                 
-                repository.getOnlineStatusFlow(otherUserId).collect { statusData ->
-                    val isOnline = statusData["isOnline"] as? Boolean ?: false
-                    val lastSeenValue = statusData["lastSeen"]
-                    
-                    println("ChatViewModel: DEBUG - Received status data: $statusData")
-                    println("ChatViewModel: DEBUG - Parsed isOnline: $isOnline")
-                    println("ChatViewModel: DEBUG - Parsed lastSeenValue: $lastSeenValue")
-                    
-                    val currentOtherUser = _chatState.value.otherUser
-                    println("ChatViewModel: DEBUG - Current other user: ${currentOtherUser?.username}")
-                    
-                    if (currentOtherUser != null) {
-                        // Convert lastSeen to Timestamp if available and not "null"
-                        val lastSeenTimestamp = when (lastSeenValue) {
-                            is Long -> {
-                                val timestamp = com.google.firebase.Timestamp(lastSeenValue / 1000, ((lastSeenValue % 1000) * 1000000).toInt())
-                                println("ChatViewModel: DEBUG - Converted lastSeen to Timestamp: $timestamp")
-                                timestamp
-                            }
-                            "null" -> {
-                                println("ChatViewModel: DEBUG - lastSeen is null")
-                                null
-                            }
-                            else -> {
-                                println("ChatViewModel: DEBUG - lastSeen is unknown type: ${lastSeenValue?.javaClass}")
-                                null
-                            }
+                println("ChatViewModel: DEBUG - Received status data: $statusData")
+                println("ChatViewModel: DEBUG - Parsed isOnline: $isOnline")
+                println("ChatViewModel: DEBUG - Parsed lastSeenValue: $lastSeenValue")
+                
+                val currentOtherUser = _chatState.value.otherUser
+                println("ChatViewModel: DEBUG - Current other user: ${currentOtherUser?.username}")
+                
+                if (currentOtherUser != null) {
+                    // Convert lastSeen to Timestamp if available and not "null"
+                    val lastSeenTimestamp = when (lastSeenValue) {
+                        is Long -> {
+                            val timestamp = com.google.firebase.Timestamp(lastSeenValue / 1000, ((lastSeenValue % 1000) * 1000000).toInt())
+                            println("ChatViewModel: DEBUG - Converted lastSeen to Timestamp: $timestamp")
+                            timestamp
                         }
-                        
-                        _chatState.value = _chatState.value.copy(
-                            otherUser = currentOtherUser.copy(
-                                isOnline = isOnline,
-                                lastSeen = lastSeenTimestamp
-                            )
-                        )
-                        println("ChatViewModel: DEBUG - Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline, lastSeen: $lastSeenTimestamp")
-                    } else {
-                        println("ChatViewModel: ERROR - Current other user is null!")
+                        "null" -> {
+                            println("ChatViewModel: DEBUG - lastSeen is null")
+                            null
+                        }
+                        else -> {
+                            println("ChatViewModel: DEBUG - lastSeen is unknown type: ${lastSeenValue?.javaClass}")
+                            null
+                        }
                     }
+                    
+                    _chatState.value = _chatState.value.copy(
+                        otherUser = currentOtherUser.copy(
+                            isOnline = isOnline,
+                            lastSeen = lastSeenTimestamp
+                        )
+                    )
+                    println("ChatViewModel: DEBUG - Updated other user online status: ${currentOtherUser.username} isOnline: $isOnline, lastSeen: $lastSeenTimestamp")
+                } else {
+                    println("ChatViewModel: ERROR - Current other user is null!")
                 }
-            } ?: run {
-                println("ChatViewModel: ERROR - otherUserId is null, cannot start online status listener")
             }
         }
         
