@@ -384,19 +384,6 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Chat room updated successfully")
             
-            // Also update in RTDB for faster real-time sync
-            messageReadRef.child(chatRoomId).child(savedMessage.id).setValue(
-                mapOf(
-                    "messageId" to savedMessage.id,
-                    "senderId" to senderId,
-                    "receiverId" to receiverId,
-                    "content" to content,
-                    "timestamp" to System.currentTimeMillis(),
-                    "isRead" to false
-                )
-            ).await()
-            
-            println("FirebaseRepository: Message also saved to RTDB for real-time sync")
             Result.success(savedMessage)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
@@ -422,7 +409,6 @@ class FirebaseRepository {
     suspend fun markAllMessagesAsRead(chatRoomId: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = com.google.firebase.Timestamp.now()
             val nowMillis = System.currentTimeMillis()
             
             println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
@@ -445,15 +431,7 @@ class FirebaseRepository {
                 if (message?.receiverId == currentUserId) {
                     println("FirebaseRepository: Marking message $messageId as read")
                     
-                    // Update in Firestore
-                    messageDoc.reference.update(
-                        mapOf(
-                            "isRead" to true,
-                            "readAt" to now
-                        )
-                    ).await()
-                    
-                    // Update in RTDB for real-time
+                    // Update ONLY in RTDB for real-time
                     messageReadRef.child(chatRoomId).child(messageId).setValue(
                         mapOf(
                             "readBy" to currentUserId,
@@ -463,7 +441,7 @@ class FirebaseRepository {
                         )
                     ).await()
                     
-                    println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
+                    println("FirebaseRepository: Marked message $messageId as read in RTDB")
                 }
             }
             
@@ -483,7 +461,7 @@ class FirebaseRepository {
             println("FirebaseRepository: Current user ID: $currentUserId")
             println("FirebaseRepository: Auth current user: ${auth.currentUser?.uid}")
             
-            // Update in RTDB for real-time
+            // Update ONLY in RTDB for real-time
             if (isOnline) {
                 println("FirebaseRepository: Setting user as online in RTDB")
                 onlineStatusRef.child(currentUserId).setValue(
@@ -518,16 +496,7 @@ class FirebaseRepository {
                 println("FirebaseRepository: onDisconnect removed for user")
             }
             
-            // Also update in Firestore for persistence
-            println("FirebaseRepository: Updating user status in Firestore")
-            usersCollection.document(currentUserId).update(
-                mapOf(
-                    "isOnline" to isOnline,
-                    "lastSeen" to if (isOnline) null else com.google.firebase.Timestamp.now()
-                )
-            ).await()
-            
-            println("FirebaseRepository: Online status updated successfully in RTDB and Firestore")
+            println("FirebaseRepository: Online status updated successfully in RTDB")
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error updating online status: ${e.message}")
