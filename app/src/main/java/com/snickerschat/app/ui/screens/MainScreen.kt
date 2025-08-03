@@ -304,7 +304,8 @@ fun FriendsScreen(
                     val user = friendsState.searchResults[index]
                     UserItem(
                         user = user,
-                        onAddFriend = { friendsViewModel.sendFriendRequest(user.id) }
+                        onAddFriend = { friendsViewModel.sendFriendRequest(user.id) },
+                        isRequestPending = friendsState.pendingRequests.contains(user.id)
                     )
                 }
             }
@@ -391,7 +392,8 @@ fun FriendRequestItem(
 @Composable
 fun UserItem(
     user: com.snickerschat.app.data.model.User,
-    onAddFriend: () -> Unit
+    onAddFriend: () -> Unit,
+    isRequestPending: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -441,11 +443,22 @@ fun UserItem(
             // Add friend button
             Button(
                 onClick = onAddFriend,
+                enabled = !isRequestPending,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
+                    containerColor = if (isRequestPending) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.secondary
                 )
             ) {
-                Text(stringResource(R.string.add_friend))
+                if (isRequestPending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("İstek Gönderildi")
+                } else {
+                    Text(stringResource(R.string.add_friend))
+                }
             }
         }
     }

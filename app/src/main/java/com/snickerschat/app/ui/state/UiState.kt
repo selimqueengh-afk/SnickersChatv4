@@ -45,7 +45,8 @@ data class FriendsState(
     val searchResults: List<User> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val pendingRequests: Set<String> = emptySet() // Track pending requests by user ID
 )
 
 data class FriendRequestWithUser(

@@ -80,8 +80,17 @@ class FriendsViewModel(
     
     fun sendFriendRequest(receiverId: String) {
         viewModelScope.launch {
+            // Add to pending requests
+            _friendsState.value = _friendsState.value.copy(
+                pendingRequests = _friendsState.value.pendingRequests + receiverId
+            )
+            
             repository.sendFriendRequest(receiverId)
                 .onSuccess {
+                    // Remove from pending requests
+                    _friendsState.value = _friendsState.value.copy(
+                        pendingRequests = _friendsState.value.pendingRequests - receiverId
+                    )
                     // Refresh search results
                     val currentQuery = _friendsState.value.searchQuery
                     if (currentQuery.isNotEmpty()) {
@@ -89,7 +98,9 @@ class FriendsViewModel(
                     }
                 }
                 .onFailure { exception ->
+                    // Remove from pending requests
                     _friendsState.value = _friendsState.value.copy(
+                        pendingRequests = _friendsState.value.pendingRequests - receiverId,
                         error = exception.message ?: "Arkadaşlık isteği gönderilemedi"
                     )
                 }

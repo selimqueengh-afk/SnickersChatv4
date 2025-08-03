@@ -211,11 +211,15 @@ class FirebaseRepository {
                     participants = listOf(request.senderId, request.receiverId),
                     lastMessageTimestamp = com.google.firebase.Timestamp.now()
                 )
-                chatRoomsCollection.add(chatRoom).await()
+                val chatRoomRef = chatRoomsCollection.add(chatRoom).await()
+                println("Chat room created with ID: ${chatRoomRef.id}")
+            } else {
+                println("Chat room already exists")
             }
             
             Result.success(Unit)
         } catch (e: Exception) {
+            println("Error in acceptFriendRequest: ${e.message}")
             Result.failure(e)
         }
     }
