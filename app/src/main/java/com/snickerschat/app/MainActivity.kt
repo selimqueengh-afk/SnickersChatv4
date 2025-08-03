@@ -16,9 +16,13 @@ import com.snickerschat.app.data.repository.FirebaseRepository
 import com.snickerschat.app.ui.screens.*
 import com.snickerschat.app.ui.theme.SnickersChatTheme
 import com.snickerschat.app.ui.viewmodel.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: FirebaseRepository
+    private val scope = CoroutineScope(Dispatchers.Main)
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,19 +44,25 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Set user as online when app becomes active
-        repository.updateUserOnlineStatus(true)
+        scope.launch {
+            repository.updateUserOnlineStatus(true)
+        }
     }
     
     override fun onPause() {
         super.onPause()
         // Set user as offline when app goes to background
-        repository.updateUserOnlineStatus(false)
+        scope.launch {
+            repository.updateUserOnlineStatus(false)
+        }
     }
     
     override fun onDestroy() {
         super.onDestroy()
         // Set user as offline when app is destroyed
-        repository.updateUserOnlineStatus(false)
+        scope.launch {
+            repository.updateUserOnlineStatus(false)
+        }
     }
 }
 
