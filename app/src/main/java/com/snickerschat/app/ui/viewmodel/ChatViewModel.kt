@@ -111,6 +111,17 @@ class ChatViewModel(
                 _chatState.value = _chatState.value.copy(messages = messagesWithUser)
             }
         }
+        
+        // Start real-time listener for other user's online status
+        viewModelScope.launch {
+            val otherUserId = _chatState.value.otherUserId
+            if (otherUserId != null) {
+                repository.getUserFlow(otherUserId).collect { user ->
+                    println("ChatViewModel: Real-time user update: ${user.username} isOnline: ${user.isOnline}")
+                    _chatState.value = _chatState.value.copy(otherUser = user)
+                }
+            }
+        }
     }
     
     fun sendMessage(receiverId: String, content: String) {

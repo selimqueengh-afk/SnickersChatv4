@@ -492,4 +492,20 @@ class FirebaseRepository {
         
         awaitClose { listener.remove() }
     }
+    
+    fun getUserFlow(userId: String): Flow<User> = callbackFlow {
+        val listener = usersCollection.document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    return@addSnapshotListener
+                }
+                
+                val user = snapshot?.toObject(User::class.java)
+                if (user != null) {
+                    trySend(user.copy(id = snapshot.id))
+                }
+            }
+        
+        awaitClose { listener.remove() }
+    }
 }

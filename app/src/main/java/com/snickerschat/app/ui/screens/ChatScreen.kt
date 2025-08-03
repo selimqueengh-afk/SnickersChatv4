@@ -53,8 +53,21 @@ fun ChatScreen(
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
     
-    // Get other user info for the header - from chat state
-    val otherUser = chatState.otherUser
+    // Get other user info for the header - from chat state with real-time updates
+    var otherUser by remember { mutableStateOf(chatState.otherUser) }
+    
+    // Update other user info when chat state changes
+    LaunchedEffect(chatState.otherUser) {
+        otherUser = chatState.otherUser
+    }
+    
+    // Real-time listener for other user's online status
+    LaunchedEffect(chatState.otherUserId) {
+        if (chatState.otherUserId != null) {
+            // Start listening to other user's online status changes
+            println("ChatScreen: Starting real-time listener for user: ${chatState.otherUserId}")
+        }
+    }
     
     // Update receiver ID when chat state changes
     LaunchedEffect(chatState.otherUserId) {
@@ -66,6 +79,7 @@ fun ChatScreen(
     LaunchedEffect(chatRoomId) {
         chatViewModel.loadMessages(chatRoomId)
         // Mark all messages as read when entering chat
+        delay(1000) // Wait a bit for messages to load
         chatViewModel.markAllMessagesAsRead(chatRoomId)
     }
     
@@ -372,9 +386,9 @@ fun MessageItem(
                                 Icons.Default.Done
                             },
                             contentDescription = if (messageWithUser.message.isRead) {
-                                stringResource(R.string.message_read)
+                                "Okundu (${messageWithUser.message.id})"
                             } else {
-                                stringResource(R.string.message_sent)
+                                "Gönderildi (${messageWithUser.message.id})"
                             },
                             modifier = Modifier.size(16.dp),
                             tint = if (messageWithUser.message.isRead) {
