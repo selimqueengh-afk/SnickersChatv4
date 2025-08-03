@@ -111,18 +111,7 @@ class FirebaseRepository {
         }
     }
     
-    suspend fun updateUserOnlineStatus(isOnline: Boolean) {
-        try {
-            val userId = auth.currentUser?.uid ?: return
-            val updateData = mapOf(
-                "isOnline" to isOnline,
-                "lastSeen" to com.google.firebase.Timestamp.now()
-            )
-            usersCollection.document(userId).update(updateData).await()
-        } catch (e: Exception) {
-            // Handle error
-        }
-    }
+
     
     // User operations
     suspend fun getUser(userId: String): Result<User> {

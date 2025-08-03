@@ -68,11 +68,13 @@ fun ChatScreen(
         chatViewModel.markAllMessagesAsRead(chatRoomId)
     }
     
-    // Update online status when entering/leaving chat
+    // Update online status when entering chat
     LaunchedEffect(Unit) {
         chatViewModel.updateOnlineStatus(true)
-        
-        // Set offline when leaving
+    }
+    
+    // Set offline when leaving chat
+    DisposableEffect(Unit) {
         onDispose {
             chatViewModel.updateOnlineStatus(false)
         }
