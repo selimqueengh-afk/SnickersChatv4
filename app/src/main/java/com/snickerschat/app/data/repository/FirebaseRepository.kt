@@ -240,7 +240,7 @@ class FirebaseRepository {
     }
     
     // Real-time listeners
-    fun getMessagesFlow(chatRoomId: String): Flow<List<Message>> = flow {
+    fun getMessagesFlow(chatRoomId: String): Flow<List<Message>> = callbackFlow {
         val listener = messagesCollection
             .whereEqualTo("chatRoomId", chatRoomId)
             .orderBy("timestamp", Query.Direction.ASCENDING)
@@ -261,8 +261,8 @@ class FirebaseRepository {
         awaitClose { listener.remove() }
     }
     
-    fun getChatRoomsFlow(): Flow<List<ChatRoom>> = flow {
-        val currentUserId = auth.currentUser?.uid ?: return@flow
+    fun getChatRoomsFlow(): Flow<List<ChatRoom>> = callbackFlow {
+        val currentUserId = auth.currentUser?.uid ?: return@callbackFlow
         
         val listener = chatRoomsCollection
             .whereArrayContains("participants", currentUserId)

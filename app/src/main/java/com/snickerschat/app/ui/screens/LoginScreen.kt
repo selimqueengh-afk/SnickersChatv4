@@ -107,7 +107,7 @@ fun LoginScreen(
                     Box(
                         modifier = Modifier
                             .size(120.dp)
-                            .scale(pulseAnimation)
+                            .graphicsLayer(scaleX = pulseAnimation, scaleY = pulseAnimation)
                             .clip(RoundedCornerShape(60.dp))
                             .background(
                                 Brush.radialGradient(

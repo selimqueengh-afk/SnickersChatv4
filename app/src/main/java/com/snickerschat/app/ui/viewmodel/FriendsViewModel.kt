@@ -24,12 +24,12 @@ class FriendsViewModel(
             repository.getFriendRequests()
                 .onSuccess { requests ->
                     // Convert requests to FriendRequestWithUser
-                    val requestsWithUser = requests.mapNotNull { request ->
+                    val requestsWithUser = mutableListOf<FriendRequestWithUser>()
+                    for (request in requests) {
                         repository.getUser(request.senderId)
                             .onSuccess { user ->
-                                FriendRequestWithUser(request = request, sender = user)
+                                requestsWithUser.add(FriendRequestWithUser(request = request, sender = user))
                             }
-                            .getOrNull()
                     }
                     
                     _friendsState.value = _friendsState.value.copy(

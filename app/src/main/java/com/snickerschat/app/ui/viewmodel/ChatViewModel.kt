@@ -24,17 +24,19 @@ class ChatViewModel(
             repository.getMessages(chatRoomId)
                 .onSuccess { messages ->
                     // Convert messages to MessageWithUser
-                    val messagesWithUser = messages.map { message ->
+                    val messagesWithUser = mutableListOf<MessageWithUser>()
+                    for (message in messages) {
                         repository.getUser(message.senderId)
                             .onSuccess { user ->
-                                MessageWithUser(
-                                    message = message,
-                                    sender = user,
-                                    isFromCurrentUser = message.senderId == getCurrentUserId()
+                                messagesWithUser.add(
+                                    MessageWithUser(
+                                        message = message,
+                                        sender = user,
+                                        isFromCurrentUser = message.senderId == getCurrentUserId()
+                                    )
                                 )
                             }
-                            .getOrNull()
-                    }.filterNotNull()
+                    }
                     
                     _chatState.value = _chatState.value.copy(
                         messages = messagesWithUser,

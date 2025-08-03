@@ -18,9 +18,9 @@ import com.snickerschat.app.R
 import com.snickerschat.app.ui.viewmodel.*
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    object Chats : Screen("chats", stringResource(R.string.chats), Icons.Default.Chat)
-    object Friends : Screen("friends", stringResource(R.string.friends), Icons.Default.People)
-    object Settings : Screen("settings", stringResource(R.string.settings), Icons.Default.Settings)
+    object Chats : Screen("chats", "Sohbetler", Icons.Default.Chat)
+    object Friends : Screen("friends", "Arkadaşlar", Icons.Default.People)
+    object Settings : Screen("settings", "Ayarlar", Icons.Default.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -177,8 +177,8 @@ fun ChatItem(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.circular
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
                     ),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
@@ -217,8 +217,8 @@ fun ChatItem(
                     modifier = Modifier
                         .size(12.dp)
                         .background(
-                            MaterialTheme.colorScheme.primary,
-                            shape = MaterialTheme.shapes.circular
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
                         )
                 )
             }
@@ -321,8 +321,8 @@ fun FriendRequestItem(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        MaterialTheme.colorScheme.secondary,
-                        shape = MaterialTheme.shapes.circular
+                        color = MaterialTheme.colorScheme.secondary,
+                        shape = CircleShape
                     ),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
@@ -395,8 +395,8 @@ fun UserItem(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        MaterialTheme.colorScheme.tertiary,
-                        shape = MaterialTheme.shapes.circular
+                        color = MaterialTheme.colorScheme.tertiary,
+                        shape = CircleShape
                     ),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {

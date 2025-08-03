@@ -24,15 +24,15 @@ class ChatListViewModel(
             repository.getChatRooms()
                 .onSuccess { chatRooms ->
                     // Convert chat rooms to ChatRoomWithUser
-                    val chatRoomsWithUser = chatRooms.mapNotNull { chatRoom ->
-                        val currentUserId = getCurrentUserId() ?: return@mapNotNull null
-                        val otherUserId = chatRoom.participants.find { it != currentUserId } ?: return@mapNotNull null
+                    val chatRoomsWithUser = mutableListOf<ChatRoomWithUser>()
+                    for (chatRoom in chatRooms) {
+                        val currentUserId = getCurrentUserId() ?: continue
+                        val otherUserId = chatRoom.participants.find { it != currentUserId } ?: continue
                         
                         repository.getUser(otherUserId)
                             .onSuccess { user ->
-                                ChatRoomWithUser(chatRoom = chatRoom, otherUser = user)
+                                chatRoomsWithUser.add(ChatRoomWithUser(chatRoom = chatRoom, otherUser = user))
                             }
-                            .getOrNull()
                     }
                     
                     _chatListState.value = _chatListState.value.copy(

@@ -139,9 +139,12 @@ fun ChatScreen(
             
             // Scroll to bottom button
             if (chatState.messages.size > 5) {
+                val coroutineScope = rememberCoroutineScope()
                 FloatingActionButton(
                     onClick = {
-                        listState.animateScrollToItem(chatState.messages.size - 1)
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(chatState.messages.size - 1)
+                        }
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
