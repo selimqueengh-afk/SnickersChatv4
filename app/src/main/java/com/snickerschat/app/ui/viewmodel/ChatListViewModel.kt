@@ -55,6 +55,21 @@ class ChatListViewModel(
         }
     }
     
+    fun deleteChatRoom(chatRoomId: String) {
+        viewModelScope.launch {
+            repository.deleteChatRoom(chatRoomId)
+                .onSuccess {
+                    // Refresh chat list
+                    loadChatRooms()
+                }
+                .onFailure { exception ->
+                    _chatListState.value = _chatListState.value.copy(
+                        error = exception.message ?: "Sohbet silinemedi"
+                    )
+                }
+        }
+    }
+    
     fun clearError() {
         _chatListState.value = _chatListState.value.copy(error = null)
     }

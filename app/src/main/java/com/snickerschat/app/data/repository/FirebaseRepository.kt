@@ -282,6 +282,29 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun deleteChatRoom(chatRoomId: String): Result<Unit> {
+        return try {
+            // Delete all messages in the chat room
+            val messagesSnapshot = messagesCollection
+                .whereEqualTo("chatRoomId", chatRoomId)
+                .get()
+                .await()
+            
+            for (messageDoc in messagesSnapshot.documents) {
+                messageDoc.reference.delete().await()
+            }
+            
+            // Delete the chat room
+            chatRoomsCollection.document(chatRoomId).delete().await()
+            
+            println("Chat room $chatRoomId deleted successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("Error deleting chat room: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
     suspend fun getMessages(chatRoomId: String): Result<List<Message>> {
         return try {
             val snapshot = messagesCollection
@@ -300,6 +323,7 @@ class FirebaseRepository {
     suspend fun sendMessage(receiverId: String, content: String): Result<Message> {
         return try {
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("FirebaseRepository: Sending message from $senderId to $receiverId")
             
             // Find or create chat room
             val chatRoomQuery = chatRoomsCollection
@@ -312,12 +336,18 @@ class FirebaseRepository {
                     chatRoom?.participants?.contains(receiverId) == true
                 }
             
+            println("FirebaseRepository: Found ${chatRoomQuery.size} existing chat rooms")
+            
             val chatRoomId = if (chatRoomQuery.isNotEmpty()) {
                 chatRoomQuery.first().id
             } else {
                 val newChatRoom = ChatRoom(participants = listOf(senderId, receiverId))
-                chatRoomsCollection.add(newChatRoom).await().id
+                val newChatRoomRef = chatRoomsCollection.add(newChatRoom).await()
+                println("FirebaseRepository: Created new chat room: ${newChatRoomRef.id}")
+                newChatRoomRef.id
             }
+            
+            println("FirebaseRepository: Using chat room ID: $chatRoomId")
             
             // Create message
             val message = Message(
@@ -330,6 +360,8 @@ class FirebaseRepository {
             val messageRef = messagesCollection.add(message).await()
             val savedMessage = message.copy(id = messageRef.id)
             
+            println("FirebaseRepository: Message saved with ID: ${savedMessage.id}")
+            
             // Update chat room
             chatRoomsCollection.document(chatRoomId).update(
                 mapOf(
@@ -339,8 +371,10 @@ class FirebaseRepository {
                 )
             ).await()
             
+            println("FirebaseRepository: Chat room updated successfully")
             Result.success(savedMessage)
         } catch (e: Exception) {
+            println("FirebaseRepository: Error sending message: ${e.message}")
             Result.failure(e)
         }
     }

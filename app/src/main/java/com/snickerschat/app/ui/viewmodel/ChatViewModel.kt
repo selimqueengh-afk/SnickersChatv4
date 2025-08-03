@@ -55,12 +55,16 @@ class ChatViewModel(
     fun sendMessage(receiverId: String, content: String) {
         if (content.trim().isEmpty()) return
         
+        println("ChatViewModel: Sending message to $receiverId: $content")
+        
         viewModelScope.launch {
             repository.sendMessage(receiverId, content.trim())
                 .onSuccess { message ->
+                    println("ChatViewModel: Message sent successfully: ${message.id}")
                     // Message will be added through real-time listener
                 }
                 .onFailure { exception ->
+                    println("ChatViewModel: Failed to send message: ${exception.message}")
                     _chatState.value = _chatState.value.copy(
                         error = exception.message ?: "Mesaj gönderilemedi"
                     )

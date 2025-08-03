@@ -208,7 +208,8 @@ fun ChatScreen(
                 FloatingActionButton(
                     onClick = {
                         if (messageText.trim().isNotEmpty()) {
-                            // Get receiver ID from the first message or use a placeholder
+                            // Get receiver ID from chat room participants
+                            val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                             val receiverId = chatState.messages.firstOrNull()?.let { messageWithUser ->
                                 if (messageWithUser.isFromCurrentUser) {
                                     messageWithUser.message.receiverId
@@ -217,9 +218,15 @@ fun ChatScreen(
                                 }
                             } ?: ""
                             
-                            if (receiverId.isNotEmpty()) {
+                            println("Sending message to: $receiverId")
+                            println("Current user: $currentUserId")
+                            println("Message: ${messageText.trim()}")
+                            
+                            if (receiverId.isNotEmpty() && receiverId != currentUserId) {
                                 chatViewModel.sendMessage(receiverId, messageText.trim())
                                 messageText = ""
+                            } else {
+                                println("Invalid receiver ID or same as current user")
                             }
                         }
                     },

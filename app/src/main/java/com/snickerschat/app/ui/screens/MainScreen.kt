@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -176,7 +177,8 @@ fun ChatListScreen(
                     val chatRoomWithUser = chatListState.chatRooms[index]
                     ChatItem(
                         chatRoomWithUser = chatRoomWithUser,
-                        onClick = { onChatClick(chatRoomWithUser.chatRoom.id) }
+                        onClick = { onChatClick(chatRoomWithUser.chatRoom.id) },
+                        onDelete = { chatListViewModel.deleteChatRoom(chatRoomWithUser.chatRoom.id) }
                     )
                 }
             }
@@ -188,7 +190,8 @@ fun ChatListScreen(
 @Composable
 fun ChatItem(
     chatRoomWithUser: com.snickerschat.app.ui.state.ChatRoomWithUser,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         onClick = onClick,
@@ -240,16 +243,34 @@ fun ChatItem(
                 }
             }
             
-            // Online status
-            if (chatRoomWithUser.otherUser.isOnline) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        )
-                )
+            // Online status and delete button
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                if (chatRoomWithUser.otherUser.isOnline) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape
+                            )
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Sohbeti Sil",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
