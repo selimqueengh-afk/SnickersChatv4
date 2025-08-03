@@ -79,6 +79,7 @@ fun ChatScreen(
     var selectedMessageForReply by remember { mutableStateOf<MessageWithUser?>(null) }
     var showReactionDialog by remember { mutableStateOf(false) }
     var selectedMessageForReaction by remember { mutableStateOf<MessageWithUser?>(null) }
+    var showMediaPickerDialog by remember { mutableStateOf(false) }
     
     // Get receiver ID from chat state
     val receiverId = chatState.otherUserId ?: ""
@@ -629,6 +630,25 @@ fun ChatScreen(
                     maxLines = 4
                 )
                 
+                // Media picker button
+                IconButton(
+                    onClick = {
+                        showMediaPickerDialog = true
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "Medya Ekle",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 FloatingActionButton(
@@ -847,6 +867,122 @@ fun ChatScreen(
         }
     }
     
+    // Modern Media Picker Dialog
+    if (showMediaPickerDialog) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Backdrop
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { showMediaPickerDialog = false }
+            )
+            
+            // Modern Media Picker Card
+            Card(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .widthIn(max = 350.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Medya Ekle",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        IconButton(
+                            onClick = { showMediaPickerDialog = false }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Media Options Grid
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            MediaOptionCard(
+                                icon = Icons.Default.PhotoCamera,
+                                title = "Kamera",
+                                subtitle = "Fotoğraf çek",
+                                onClick = {
+                                    // TODO: Open camera
+                                    chatViewModel.showError("Kamera yakında eklenecek!")
+                                    showMediaPickerDialog = false
+                                }
+                            )
+                        }
+                        item {
+                            MediaOptionCard(
+                                icon = Icons.Default.PhotoLibrary,
+                                title = "Galeri",
+                                subtitle = "Fotoğraf seç",
+                                onClick = {
+                                    // TODO: Open gallery
+                                    chatViewModel.showError("Galeri yakında eklenecek!")
+                                    showMediaPickerDialog = false
+                                }
+                            )
+                        }
+                        item {
+                            MediaOptionCard(
+                                icon = Icons.Default.Mic,
+                                title = "Sesli Mesaj",
+                                subtitle = "Ses kaydet",
+                                onClick = {
+                                    // TODO: Start audio recording
+                                    chatViewModel.showError("Sesli mesaj yakında eklenecek!")
+                                    showMediaPickerDialog = false
+                                }
+                            )
+                        }
+                        item {
+                            MediaOptionCard(
+                                icon = Icons.Default.AttachFile,
+                                title = "Dosya",
+                                subtitle = "Dosya seç",
+                                onClick = {
+                                    // TODO: Open file picker
+                                    chatViewModel.showError("Dosya seçici yakında eklenecek!")
+                                    showMediaPickerDialog = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     // Reply Dialog
     if (showReplyDialog && selectedMessageForReply != null) {
         var replyText by remember { mutableStateOf("") }
@@ -1003,6 +1139,72 @@ fun ChatScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun MediaOptionCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Icon with background
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Title
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Subtitle
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
