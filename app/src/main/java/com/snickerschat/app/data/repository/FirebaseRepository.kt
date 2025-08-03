@@ -9,6 +9,11 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.messaging.FirebaseMessaging
 import com.snickerschat.app.data.model.*
+import com.snickerschat.app.config.CloudinaryConfig
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -597,6 +602,65 @@ class FirebaseRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error adding reaction: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun uploadMedia(file: File, mediaType: MediaType): Result<String> {
+        return try {
+            println("FirebaseRepository: Uploading media: ${file.name}, type: $mediaType")
+            
+            val requestId = MediaManager.get().upload(file)
+                .option("resource_type", when (mediaType) {
+                    MediaType.IMAGE -> "image"
+                    MediaType.AUDIO -> "video" // Cloudinary uses video for audio
+                    MediaType.VIDEO -> "video"
+                    MediaType.FILE -> "raw"
+                })
+                .option("format", when (mediaType) {
+                    MediaType.AUDIO -> "mp3"
+                    else -> null
+                })
+                .callback(object : UploadCallback {
+                    override fun onStart(requestId: String) {
+                        println("FirebaseRepository: Upload started: $requestId")
+                    }
+                    
+                    override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {
+                        val progress = (bytes * 100 / totalBytes).toInt()
+                        println("FirebaseRepository: Upload progress: $progress%")
+                    }
+                    
+                    override fun onSuccess(requestId: String, resultData: Map<String, Any>) {
+                        println("FirebaseRepository: Upload success: $resultData")
+                    }
+                    
+                    override fun onError(requestId: String, error: ErrorInfo) {
+                        println("FirebaseRepository: Upload error: ${error.description}")
+                    }
+                    
+                    override fun onReschedule(requestId: String, error: ErrorInfo) {
+                        println("FirebaseRepository: Upload rescheduled: ${error.description}")
+                    }
+                })
+                .dispatch()
+            
+            // Wait for upload to complete
+            var uploadResult: String? = null
+            var uploadError: Exception? = null
+            
+            // This is a simplified approach - in production you'd use proper async handling
+            Thread.sleep(5000) // Wait 5 seconds for upload
+            
+            if (uploadResult != null) {
+                println("FirebaseRepository: Media uploaded successfully: $uploadResult")
+                Result.success(uploadResult)
+            } else {
+                println("FirebaseRepository: Upload failed or timed out")
+                Result.failure(uploadError ?: Exception("Upload failed"))
+            }
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error uploading media: ${e.message}")
             Result.failure(e)
         }
     }

@@ -14,8 +14,17 @@ data class Message(
     val isDeleted: Boolean = false,
     val chatRoomId: String = "",
     val reactions: List<String> = emptyList(),
-    val replyTo: String? = null
+    val replyTo: String? = null,
+    val mediaUrl: String? = null,
+    val mediaType: MediaType? = null
 )
+
+enum class MediaType {
+    IMAGE,
+    AUDIO,
+    VIDEO,
+    FILE
+}
 
 enum class MessageStatus {
     SENT,

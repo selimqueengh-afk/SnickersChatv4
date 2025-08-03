@@ -16,6 +16,7 @@ import com.snickerschat.app.data.repository.FirebaseRepository
 import com.snickerschat.app.ui.screens.*
 import com.snickerschat.app.ui.theme.SnickersChatTheme
 import com.snickerschat.app.ui.viewmodel.*
+import com.snickerschat.app.config.CloudinaryConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,6 +28,9 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Cloudinary
+        CloudinaryConfig.init()
         
         repository = FirebaseRepository()
         
