@@ -472,21 +472,27 @@ class FirebaseRepository {
             val now = System.currentTimeMillis()
             
             println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
-            println("FirebaseRepository: Current user ID: $currentUserId")
-            println("FirebaseRepository: Auth current user: ${auth.currentUser?.uid}")
             
-            // Update ONLY in RTDB for real-time
+            // Simple RTDB update
+            val statusData = if (isOnline) {
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null,
+                    "timestamp" to now
+                )
+            } else {
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to now,
+                    "timestamp" to now
+                )
+            }
+            
+            // Update in RTDB
+            onlineStatusRef.child(currentUserId).setValue(statusData).await()
+            
+            // Set up onDisconnect only when going online
             if (isOnline) {
-                println("FirebaseRepository: Setting user as online in RTDB")
-                onlineStatusRef.child(currentUserId).setValue(
-                    mapOf(
-                        "isOnline" to true,
-                        "lastSeen" to null,
-                        "timestamp" to now
-                    )
-                ).await()
-                
-                // Set up onDisconnect to mark user as offline when connection is lost
                 onlineStatusRef.child(currentUserId).onDisconnect().setValue(
                     mapOf(
                         "isOnline" to false,
@@ -494,27 +500,12 @@ class FirebaseRepository {
                         "timestamp" to now
                     )
                 )
-                println("FirebaseRepository: onDisconnect set up for user")
-            } else {
-                println("FirebaseRepository: Setting user as offline in RTDB")
-                onlineStatusRef.child(currentUserId).setValue(
-                    mapOf(
-                        "isOnline" to false,
-                        "lastSeen" to now,
-                        "timestamp" to now
-                    )
-                ).await()
-                
-                // Remove onDisconnect when user goes offline manually
-                onlineStatusRef.child(currentUserId).onDisconnect().removeValue()
-                println("FirebaseRepository: onDisconnect removed for user")
             }
             
             println("FirebaseRepository: Online status updated successfully in RTDB")
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error updating online status: ${e.message}")
-            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -667,14 +658,10 @@ class FirebaseRepository {
             object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                     println("FirebaseRepository: Online status data changed for user $userId")
-                    println("FirebaseRepository: Snapshot exists: ${snapshot.exists()}")
-                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
-                    println("FirebaseRepository: Snapshot key: ${snapshot.key}")
                     
                     if (snapshot.exists()) {
                         val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
-                        println("FirebaseRepository: Online status changed for user $userId: $isOnline")
-                        println("FirebaseRepository: Raw isOnline value: ${snapshot.child("isOnline").getValue()}")
+                        println("FirebaseRepository: Online status for user $userId: $isOnline")
                         trySend(isOnline)
                     } else {
                         println("FirebaseRepository: No online status data for user $userId, defaulting to offline")
