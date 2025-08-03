@@ -107,18 +107,18 @@ fun ChatScreen(
     ) {
         // Top bar
         TopAppBar(
-            title = { 
-                otherUser?.let { user ->
+            title = {
+                if (otherUser != null) {
                     Column {
                         Text(
-                            text = user.username,
+                            text = otherUser.username,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = if (user.isOnline) {
+                            text = if (otherUser.isOnline) {
                                 "🟢 Çevrimiçi"
                             } else {
                                 "🔴 Çevrimdışı"
@@ -126,14 +126,11 @@ fun ChatScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
-                        
-                        // Show last seen time only when offline
-                        if (!user.isOnline && user.lastSeen != null) {
+                        if (!otherUser.isOnline && otherUser.lastSeen != null) {
                             Text(
-                                text = user.lastSeen.let { lastSeen ->
+                                text = otherUser.lastSeen.let { lastSeen ->
                                     val now = com.google.firebase.Timestamp.now()
                                     val diffInSeconds = now.seconds - lastSeen.seconds
-                                    
                                     when {
                                         diffInSeconds < 60 -> "Son görülme: Az önce"
                                         diffInSeconds < 3600 -> "Son görülme: ${diffInSeconds / 60} dakika önce"
