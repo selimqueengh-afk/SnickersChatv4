@@ -738,24 +738,33 @@ fun ChatScreen(
                 Spacer(modifier = Modifier.width(4.dp))
                 // Sesli mesaj tuşu (mikrofon)
                 var isRecordingButtonPressed by remember { mutableStateOf(false) }
-                IconButton(
-                    onClick = {}, // Boş, sadece basılı tutma için
-                    onLongClick = {
-                        isRecordingButtonPressed = true
-                        startAudioRecording()
-                    },
-                    onLongClickRelease = {
-                        if (isRecordingButtonPressed) {
-                            stopAudioRecording()
-                            isRecordingButtonPressed = false
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .size(36.dp)
                         .background(
                             color = if (isRecordingButtonPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                             shape = CircleShape
                         )
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = {
+                                    isRecordingButtonPressed = true
+                                    startAudioRecording()
+                                },
+                                onPress = {
+                                    val pressSucceeded = tryAwaitRelease()
+                                    if (isRecordingButtonPressed && pressSucceeded) {
+                                        stopAudioRecording()
+                                        isRecordingButtonPressed = false
+                                    } else if (isRecordingButtonPressed) {
+                                        // Parmağı kaydırıp bırakırsa da kaydı bitir
+                                        stopAudioRecording()
+                                        isRecordingButtonPressed = false
+                                    }
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Mic,
