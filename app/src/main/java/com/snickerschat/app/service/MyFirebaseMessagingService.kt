@@ -85,7 +85,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Build notification
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification) // You'll need to add this icon
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // Use existing icon
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -101,9 +101,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun sendRegistrationToServer(token: String) {
-        // TODO: Send the token to your server
-        // This is where you would typically send the FCM token to your backend
-        // so it can send push notifications to this device
-        println("FCM Token: $token")
+        // Save FCM token to Firestore
+        val repository = com.snickerschat.app.data.repository.FirebaseRepository()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val currentUser = repository.getCurrentUser()
+                currentUser?.let { user ->
+                    repository.saveFCMToken(user.id, token)
+                    println("FCM Token saved to Firestore: ${token.take(20)}...")
+                }
+            } catch (e: Exception) {
+                println("Error saving FCM token: ${e.message}")
+            }
+        }
     }
 }

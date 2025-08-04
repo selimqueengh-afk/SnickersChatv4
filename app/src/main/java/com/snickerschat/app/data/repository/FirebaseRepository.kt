@@ -759,8 +759,18 @@ class FirebaseRepository {
     
     suspend fun saveFCMToken(userId: String, token: String): Result<Unit> {
         return try {
+            // Save to RTDB for real-time access
             fcmTokensRef.child(userId).setValue(token).await()
-            println("FirebaseRepository: FCM token saved for user: $userId")
+            
+            // Also save to Firestore for backend access
+            usersCollection.document(userId).update(
+                mapOf(
+                    "fcmToken" to token,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            ).await()
+            
+            println("FirebaseRepository: FCM token saved for user: $userId (RTDB + Firestore)")
             Result.success(Unit)
         } catch (e: Exception) {
             println("FirebaseRepository: Error saving FCM token: ${e.message}")
