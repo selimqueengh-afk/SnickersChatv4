@@ -159,25 +159,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
-    // Update Dialog
-    if (showUpdateDialog && latestVersion != null) {
-        UpdateDialog(
-            latestVersion = latestVersion!!,
-            onUpdate = {
-                // Start download
-                updateManager.downloadUpdate(
-                    latestVersion!!.downloadUrl,
-                    latestVersion!!.version
-                )
-                showUpdateDialog = false
-            },
-            onDismiss = {
-                showUpdateDialog = false
-            },
-            isForceUpdate = latestVersion!!.isForceUpdate
-        )
-    }
 }
 
 @Composable
@@ -267,5 +248,24 @@ fun SnickersChatApp(repository: FirebaseRepository, updateManager: UpdateManager
                 onBackClick = { navController.popBackStack() }
             )
         }
+    }
+    
+    // Update Dialog
+    if (showUpdateDialog && latestVersion != null) {
+        UpdateDialog(
+            latestVersion = latestVersion!!,
+            onUpdate = {
+                // Start download
+                updateManager.downloadUpdate(
+                    latestVersion!!.downloadUrl,
+                    latestVersion!!.version
+                )
+                showUpdateDialog = false
+            },
+            onDismiss = {
+                showUpdateDialog = false
+            },
+            isForceUpdate = latestVersion!!.isForceUpdate
+        )
     }
 }
