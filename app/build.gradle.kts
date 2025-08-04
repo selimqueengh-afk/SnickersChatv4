@@ -8,6 +8,11 @@ plugins {
 android {
     namespace = "com.snickerschat.app"
     compileSdk = 34
+    
+    // Increase memory for R8
+    dexOptions {
+        javaMaxHeapSize = "4g"
+    }
 
     defaultConfig {
         applicationId = "com.snickerschat.app"
