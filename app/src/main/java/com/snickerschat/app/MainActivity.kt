@@ -179,6 +179,8 @@ class MainActivity : ComponentActivity() {
         )
     }
 }
+
+@Composable
 fun SnickersChatApp(repository: FirebaseRepository, updateManager: UpdateManager) {
     val navController = rememberNavController()
     val context = LocalContext.current
