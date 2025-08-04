@@ -1067,7 +1067,7 @@ class FirebaseRepository {
         // FCM HTTP v1 API endpoint
         val FCM_API = "https://fcm.googleapis.com/fcm/send"
         // TODO: Kendi sunucundan veya güvenli bir yerden al! Şimdilik test için buraya yazıyoruz.
-        val SERVER_KEY = "key=YOUR_FCM_SERVER_KEY_HERE"
+        val SERVER_KEY = "key=BEojipfPOa3zG3WJHEIMzR-XJPUfNVpg3d5a05MIjW4yIE1klzKJtamHZM7qvVUgbs_DoWHz-IgX5ynJhSgOrDw"
         val client = OkHttpClient()
         val json = JSONObject().apply {
             put("to", token)
