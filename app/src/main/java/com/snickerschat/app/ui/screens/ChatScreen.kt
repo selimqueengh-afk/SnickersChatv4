@@ -62,6 +62,16 @@ import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.window.Dialog
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Brush
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.ExoPlayer.Builder
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -690,42 +700,45 @@ fun ChatScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(12.dp)
+                .shadow(10.dp, RoundedCornerShape(32.dp)),
+            shape = RoundedCornerShape(32.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
         ) {
             Row(
-                modifier = Modifier.padding(8.dp),
-                verticalAlignment = Alignment.Bottom
+                modifier = Modifier.padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Ataç tuşu en solda
+                // Küçük, modern ataç tuşu
                 IconButton(
                     onClick = { showMediaPickerDialog = true },
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(32.dp)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = CircleShape
                         )
+                        .shadow(4.dp, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.AttachFile,
                         contentDescription = "Medya Ekle",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(6.dp))
-                // Yazı kutusu ortada
+                Spacer(modifier = Modifier.width(4.dp))
+                // Modern yazı kutusu
                 OutlinedTextField(
                     value = messageText,
                     onValueChange = { messageText = it },
                     placeholder = { Text(stringResource(R.string.type_message)) },
                     modifier = Modifier
                         .weight(1f)
-                        .focusRequester(focusRequester),
+                        .focusRequester(focusRequester)
+                        .shadow(2.dp, RoundedCornerShape(20.dp)),
                     shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
@@ -738,10 +751,10 @@ fun ChatScreen(
                     ),
                     maxLines = 4
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 // Sağda: mesaj varsa gönder, yoksa mikrofon
                 if (messageText.trim().isNotEmpty()) {
-                    FloatingActionButton(
+                    IconButton(
                         onClick = {
                             val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
@@ -757,50 +770,38 @@ fun ChatScreen(
                                 chatViewModel.showError("Mesaj gönderilemedi: Alıcı bulunamadı")
                             }
                         },
-                        modifier = Modifier.size(40.dp),
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape
+                            )
+                            .shadow(4.dp, CircleShape),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Send,
                             contentDescription = stringResource(R.string.send),
-                            modifier = Modifier.size(22.dp)
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 } else {
                     var isRecordingButtonPressed by remember { mutableStateOf(false) }
-                    Box(
+                    IconButton(
+                        onClick = {},
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(32.dp)
                             .background(
                                 color = if (isRecordingButtonPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = CircleShape
                             )
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        isRecordingButtonPressed = true
-                                        startAudioRecording()
-                                    },
-                                    onPress = {
-                                        val pressSucceeded = tryAwaitRelease()
-                                        if (isRecordingButtonPressed && pressSucceeded) {
-                                            stopAudioRecording()
-                                            isRecordingButtonPressed = false
-                                        } else if (isRecordingButtonPressed) {
-                                            stopAudioRecording()
-                                            isRecordingButtonPressed = false
-                                        }
-                                    }
-                                )
-                            },
-                        contentAlignment = Alignment.Center
+                            .shadow(4.dp, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Sesli Mesaj Gönder",
-                            tint = if (isRecordingButtonPressed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                            tint = if (isRecordingButtonPressed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -1358,6 +1359,126 @@ fun AnimatedReactionEmoji(
 }
 
 @Composable
+fun AudioMessagePlayer(
+    audioUrl: String,
+    isFromCurrentUser: Boolean
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isPlaying by remember { mutableStateOf(false) }
+    var duration by remember { mutableStateOf(0L) }
+    var position by remember { mutableStateOf(0L) }
+    var userSeeking by remember { mutableStateOf(false) }
+
+    val player = remember {
+        Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(audioUrl))
+            prepare()
+        }
+    }
+
+    DisposableEffect(audioUrl) {
+        player.setMediaItem(MediaItem.fromUri(audioUrl))
+        player.prepare()
+        onDispose {
+            player.release()
+        }
+    }
+
+    LaunchedEffect(player) {
+        while (true) {
+            if (!userSeeking) {
+                position = player.currentPosition
+            }
+            duration = player.duration.takeIf { it > 0 } ?: duration
+            isPlaying = player.isPlaying
+            delay(100L)
+        }
+    }
+
+    val progress = if (duration > 0) position / duration.toFloat() else 0f
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.7f)
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            IconButton(
+                onClick = {
+                    if (player.isPlaying) player.pause() else player.play()
+                },
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = if (isFromCurrentUser) listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary) else listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.surfaceVariant)
+                        ),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Durdur" else "Oynat",
+                    tint = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Slider(
+                    value = progress,
+                    onValueChange = {
+                        userSeeking = true
+                        position = (it * duration).toLong()
+                    },
+                    onValueChangeFinished = {
+                        player.seekTo(position)
+                        userSeeking = false
+                    },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        activeTrackColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                    ),
+                    modifier = Modifier.height(24.dp)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = formatMillis(position),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatMillis(duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun formatMillis(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
+
+@Composable
 fun MessageItem(
     messageWithUser: MessageWithUser,
     onLongClick: () -> Unit,
@@ -1599,8 +1720,11 @@ fun MessageItem(
                             }
                         }
                         url != null && (url.endsWith(".mp3", true) || url.endsWith(".m4a", true) || url.endsWith(".wav", true)) -> {
-                            // Sesli mesaj oynatıcı (placeholder)
-                            Text("[Sesli mesaj oynatıcı buraya gelecek]", color = Color.Gray)
+                            // WhatsApp-style audio player
+                            AudioMessagePlayer(
+                                audioUrl = url,
+                                isFromCurrentUser = isFromCurrentUser
+                            )
                             if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -1611,17 +1735,11 @@ fun MessageItem(
                             }
                         }
                         url != null -> {
-                            // Dosya önizlemesi
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.InsertDriveFile, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = url.substringAfterLast('/'),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.clickable { /* Dosyayı aç */ }
-                                )
-                            }
+                            // Dosya önizlemesi (modern, şık, indirme butonlu)
+                            FileMessagePreview(
+                                fileUrl = url,
+                                isFromCurrentUser = isFromCurrentUser
+                            )
                             if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -1731,5 +1849,129 @@ fun MessageItem(
             )
         }
     }
+}
+
+@Composable
+fun FileMessagePreview(
+    fileUrl: String,
+    isFromCurrentUser: Boolean
+) {
+    val context = LocalContext.current
+    val fileInfo = remember(fileUrl) {
+        val uri = Uri.parse(fileUrl)
+        val fileName = uri.lastPathSegment ?: "Dosya"
+        val fileSize = try {
+            val contentResolver = context.contentResolver
+            val file = File(fileUrl)
+            if (file.exists()) {
+                val length = file.length()
+                if (length < 1024) {
+                    "$length B"
+                } else if (length < 1024 * 1024) {
+                    "%.1f KB".format(length / 1024.0)
+                } else {
+                    "%.1f MB".format(length / 1024.0 / 1024.0)
+                }
+            } else {
+                "Dosya bulunamadı"
+            }
+        } catch (e: Exception) {
+            "Hata: ${e.message}"
+        }
+        FilePreviewInfo(fileName, fileSize)
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.7f)
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.InsertDriveFile,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = fileInfo.fileName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = fileInfo.fileSize,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(Uri.parse(fileUrl), context.contentResolver.getType(Uri.parse(fileUrl)))
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "İndir",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+data class FilePreviewInfo(val fileName: String, val fileSize: String)
+
+@Composable
+fun ModernImagePreview(url: String) {
+    var showImageDialog by remember { mutableStateOf(false) }
+    if (showImageDialog) {
+        Dialog(onDismissRequest = { showImageDialog = false }) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .border(2.dp, Color.White, RoundedCornerShape(24.dp))
+                        .shadow(16.dp, RoundedCornerShape(24.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+    AsyncImage(
+        model = url,
+        contentDescription = null,
+        modifier = Modifier
+            .size(200.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, Color.LightGray, RoundedCornerShape(16.dp))
+            .shadow(8.dp, RoundedCornerShape(16.dp))
+            .clickable { showImageDialog = true },
+        contentScale = ContentScale.Crop
+    )
 }
 
