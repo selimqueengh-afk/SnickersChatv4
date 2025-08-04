@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import java.util.*
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -611,24 +612,45 @@ class FirebaseRepository {
         return try {
             println("FirebaseRepository: Uploading media: ${file.name}, type: $mediaType")
             
-            // Cloudinary upload (commented out due to unused variable warning)
-            // val uploadRequest = MediaManager.get().upload(file.absolutePath)
-            //     .option("resource_type", when(mediaType) {
-            //         MediaType.IMAGE -> "image"
-            //         MediaType.AUDIO -> "video" // Cloudinary uses video for audio
-            //         MediaType.VIDEO -> "video"
-            //         MediaType.FILE -> "raw"
-            //     })
-            //     .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
-            //     .option("overwrite", true)
+            val resourceType = when(mediaType) {
+                MediaType.IMAGE -> "image"
+                MediaType.AUDIO -> "video" // Cloudinary uses video for audio
+                MediaType.VIDEO -> "video"
+                MediaType.FILE -> "raw"
+            }
             
-            // TODO: Fix Cloudinary call method
-            // val result = uploadRequest.call()
-            // val url = result.getString("secure_url") ?: result.getString("url")
-            val url = "https://res.cloudinary.com/dedz2kgln/image/upload/v1/placeholder"
-            
-            println("FirebaseRepository: Media uploaded successfully: $url")
-            Result.success(url)
+            // Cloudinary upload (gerçek upload)
+            return suspendCancellableCoroutine { cont ->
+                MediaManager.get().upload(file.absolutePath)
+                    .option("resource_type", resourceType)
+                    .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
+                    .option("overwrite", true)
+                    .callback(object : UploadCallback {
+                        override fun onStart(requestId: String?) {
+                            println("Cloudinary upload started: $requestId")
+                        }
+                        override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                        override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                            val url = resultData?.get("secure_url") as? String
+                                ?: resultData?.get("url") as? String
+                            println("Cloudinary upload success: $url")
+                            if (url != null) {
+                                cont.resume(Result.success(url), null)
+                            } else {
+                                cont.resume(Result.failure(Exception("Cloudinary: URL null")), null)
+                            }
+                        }
+                        override fun onError(requestId: String?, error: ErrorInfo?) {
+                            println("Cloudinary upload error: ${error?.description}")
+                            cont.resume(Result.failure(Exception(error?.description)), null)
+                        }
+                        override fun onReschedule(requestId: String?, error: ErrorInfo?) {
+                            println("Cloudinary upload rescheduled: ${error?.description}")
+                            cont.resume(Result.failure(Exception(error?.description)), null)
+                        }
+                    })
+                    .dispatch()
+            }
         } catch (e: Exception) {
             println("FirebaseRepository: Error uploading media: ${e.message}")
             Result.failure(e)
