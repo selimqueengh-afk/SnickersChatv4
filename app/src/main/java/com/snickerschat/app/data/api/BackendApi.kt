@@ -20,6 +20,9 @@ interface BackendApi {
         @Path("userId") userId: String,
         @Body request: TokenUpdateRequest
     ): Response<TokenUpdateResponse>
+    
+    @GET("api/app/version")
+    suspend fun checkAppVersion(): Response<AppVersionResponse>
 }
 
 data class NotificationRequest(
@@ -48,4 +51,19 @@ data class TokenUpdateRequest(
 data class TokenUpdateResponse(
     val success: Boolean,
     val message: String
+)
+
+data class AppVersionResponse(
+    val success: Boolean,
+    val currentVersion: String,
+    val latestVersion: LatestVersion
+)
+
+data class LatestVersion(
+    val version: String,
+    val versionCode: Int,
+    val downloadUrl: String,
+    val releaseNotes: List<String>,
+    val isForceUpdate: Boolean,
+    val minVersion: String
 )

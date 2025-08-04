@@ -17,6 +17,8 @@ import com.snickerschat.app.data.repository.FirebaseRepository
 import com.snickerschat.app.ui.screens.*
 import com.snickerschat.app.ui.theme.SnickersChatTheme
 import com.snickerschat.app.ui.viewmodel.*
+import com.snickerschat.app.ui.components.UpdateDialog
+import com.snickerschat.app.service.UpdateManager
 import com.snickerschat.app.config.CloudinaryConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,7 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: FirebaseRepository
+    private lateinit var updateManager: UpdateManager
     private val scope = CoroutineScope(Dispatchers.Main)
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -52,6 +55,7 @@ class MainActivity : ComponentActivity() {
         CloudinaryConfig.init(this)
         
         repository = FirebaseRepository()
+        updateManager = UpdateManager(this)
         
         setContent {
             SnickersChatTheme {
@@ -59,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SnickersChatApp(repository)
+                    SnickersChatApp(repository, updateManager)
                 }
             }
         }
@@ -155,11 +159,48 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    
+    // Update Dialog
+    if (showUpdateDialog && latestVersion != null) {
+        UpdateDialog(
+            latestVersion = latestVersion!!,
+            onUpdate = {
+                // Start download
+                updateManager.downloadUpdate(
+                    latestVersion!!.downloadUrl,
+                    latestVersion!!.version
+                )
+                showUpdateDialog = false
+            },
+            onDismiss = {
+                showUpdateDialog = false
+            },
+            isForceUpdate = latestVersion!!.isForceUpdate
+        )
+    }
 }
 
 @Composable
-fun SnickersChatApp(repository: FirebaseRepository) {
+fun SnickersChatApp(repository: FirebaseRepository, updateManager: UpdateManager) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    
+    // Update state
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var latestVersion by remember { mutableStateOf<com.snickerschat.app.data.api.LatestVersion?>(null) }
+    
+    // Check for updates on app start
+    LaunchedEffect(Unit) {
+        try {
+            val update = updateManager.checkForUpdates()
+            if (update != null) {
+                latestVersion = update
+                showUpdateDialog = true
+            }
+        } catch (e: Exception) {
+            println("Error checking for updates: ${e.message}")
+        }
+    }
     
     // ViewModels
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(repository) }
