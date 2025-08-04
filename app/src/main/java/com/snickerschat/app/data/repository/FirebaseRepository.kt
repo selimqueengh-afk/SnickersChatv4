@@ -308,7 +308,9 @@ class FirebaseRepository {
             println("DEBUG: senderId: $senderId")
             val request = FriendRequest(
                 senderId = senderId,
-                receiverId = receiverId
+                receiverId = receiverId,
+                status = RequestStatus.PENDING,
+                timestamp = com.google.firebase.Timestamp.now()
             )
             friendRequestsCollection.add(request).await()
             println("DEBUG: Friend request sent successfully")
