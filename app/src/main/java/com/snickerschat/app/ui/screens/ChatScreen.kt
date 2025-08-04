@@ -716,14 +716,13 @@ fun ChatScreen(
                     ),
                     maxLines = 4
                 )
-                
-                // Media picker button
+                // Ataç tuşu (küçültüldü)
                 IconButton(
                     onClick = {
                         showMediaPickerDialog = true
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(36.dp) // Küçültüldü
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = CircleShape
@@ -732,48 +731,67 @@ fun ChatScreen(
                     Icon(
                         imageVector = Icons.Default.AttachFile,
                         contentDescription = "Medya Ekle",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp) // Küçük ikon
                     )
                 }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
+                Spacer(modifier = Modifier.width(4.dp))
+                // Sesli mesaj tuşu (mikrofon)
+                var isRecordingButtonPressed by remember { mutableStateOf(false) }
+                IconButton(
+                    onClick = {}, // Boş, sadece basılı tutma için
+                    onLongClick = {
+                        isRecordingButtonPressed = true
+                        startAudioRecording()
+                    },
+                    onLongClickRelease = {
+                        if (isRecordingButtonPressed) {
+                            stopAudioRecording()
+                            isRecordingButtonPressed = false
+                        }
+                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = if (isRecordingButtonPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Sesli Mesaj Gönder",
+                        tint = if (isRecordingButtonPressed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                // Mesaj gönderme tuşu (küçültüldü)
                 FloatingActionButton(
                     onClick = {
                         if (messageText.trim().isNotEmpty()) {
                             val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                            
-                            println("Sending message to: $receiverId")
-                            println("Current user: $currentUserId")
-                            println("Message: ${messageText.trim()}")
-                            println("Chat room ID: $chatRoomId")
-                            
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
-                                // Send message with reply reference
                                 val finalMessage = if (replyingToMessage != null) {
                                     "REPLY_TO:${replyingToMessage?.message?.id}:${replyingToMessage?.sender?.username}:${replyingToMessage?.message?.content}\n\n${messageText.trim()}"
                                 } else {
                                     messageText.trim()
                                 }
-                                
                                 chatViewModel.sendMessage(receiverId, finalMessage)
                                 messageText = ""
-                                replyingToMessage = null // Clear reply state
+                                replyingToMessage = null
                             } else {
-                                println("Invalid receiver ID or same as current user")
-                                println("Receiver ID: '$receiverId'")
-                                println("Current User ID: '$currentUserId'")
                                 chatViewModel.showError("Mesaj gönderilemedi: Alıcı bulunamadı")
                             }
                         }
                     },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(36.dp), // Küçültüldü
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = stringResource(R.string.send)
+                        contentDescription = stringResource(R.string.send),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
