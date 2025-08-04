@@ -10,8 +10,10 @@ android {
     compileSdk = 34
     
     // Increase memory for R8
-    dexOptions {
-        javaMaxHeapSize = "4g"
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 
     defaultConfig {
@@ -29,8 +31,8 @@ android {
     
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
