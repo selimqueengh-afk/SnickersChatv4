@@ -54,7 +54,37 @@ class FirebaseRepository {
     suspend fun signInAnonymously(): Result<String> {
         return try {
             val result = auth.signInAnonymously().await()
-            Result.success(result.user?.uid ?: "")
+            val userId = result.user?.uid ?: throw Exception("Failed to create anonymous user")
+            
+            // Create user document in Firestore for anonymous user
+            val user = User(
+                id = userId,
+                username = "Anonim_${userId.take(8)}",
+                email = "anonim@snickers.chat",
+                isOnline = true,
+                lastSeen = com.google.firebase.Timestamp.now()
+            )
+            usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for anonymous user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect for anonymous user
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - Anonymous user status initialized in RTDB")
+            Result.success(userId)
         } catch (e: Exception) {
             Result.failure(e)
         }
