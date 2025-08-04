@@ -10,6 +10,8 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.messaging.FirebaseMessaging
 import com.snickerschat.app.data.model.*
 import com.snickerschat.app.config.CloudinaryConfig
+import com.snickerschat.app.data.api.ApiClient
+import com.snickerschat.app.data.api.NotificationRequest
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
@@ -496,6 +498,9 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Chat room updated successfully")
             println("FirebaseRepository: Message saved to RTDB and Firestore")
+            
+            // Send push notification via backend
+            sendPushNotification(senderId, receiverId, content, chatRoomId)
 
             // --- FCM PUSH NOTIFICATION (AFTER SUCCESSFUL MESSAGE SAVE) ---
             // Run FCM push in separate coroutine to not block message sending
@@ -1142,6 +1147,40 @@ class FirebaseRepository {
                 println("FCM: Exception in sendFCMPushNotification: ${e.message}")
                 e.printStackTrace()
             }
+        }
+    }
+    
+    // Push Notification via Backend
+    private suspend fun sendPushNotification(
+        senderId: String, 
+        receiverId: String, 
+        message: String, 
+        chatRoomId: String
+    ) {
+        try {
+            // Get sender's name
+            val senderDoc = usersCollection.document(senderId).get().await()
+            val senderName = senderDoc.getString("username") ?: "Kullanıcı"
+            
+            // Create notification request
+            val request = NotificationRequest(
+                receiverId = receiverId,
+                senderId = senderId,
+                senderName = senderName,
+                message = message,
+                chatRoomId = chatRoomId
+            )
+            
+            // Send notification via backend API
+            val response = ApiClient.backendApi.sendNotification(request)
+            
+            if (response.isSuccessful) {
+                println("FirebaseRepository: Push notification sent successfully via backend")
+            } else {
+                println("FirebaseRepository: Failed to send push notification via backend: ${response.errorBody()?.string()}")
+            }
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error sending push notification via backend: ${e.message}")
         }
     }
 }
