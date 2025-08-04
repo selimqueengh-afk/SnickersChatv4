@@ -1558,11 +1558,11 @@ fun MessageItem(
                 } else {
                     // Medya önizleme: Cloudinary linki varsa uygun şekilde göster
                     val content = messageWithUser.message.content
-                    val urlRegex = Regex("https://res.cloudinary.com/[^\s]+\.(jpg|jpeg|png|gif|mp3|m4a|wav|pdf|docx|xlsx|pptx|txt|zip|rar)")
+                    val urlRegex = Regex("https://res.cloudinary.com/[^\\s]+\\.(jpg|jpeg|png|gif|mp3|m4a|wav|pdf|docx|xlsx|pptx|txt|zip|rar)")
                     val match = urlRegex.find(content)
                     val url = match?.value
                     when {
-                        url != null && url.endsWith(".jpg", true) || url.endsWith(".jpeg", true) || url.endsWith(".png", true) || url.endsWith(".gif", true) -> {
+                        url != null && (url.endsWith(".jpg", true) || url.endsWith(".jpeg", true) || url.endsWith(".png", true) || url.endsWith(".gif", true)) -> {
                             // Resim önizlemesi
                             var showImageDialog by remember { mutableStateOf(false) }
                             if (showImageDialog) {
@@ -1589,10 +1589,10 @@ fun MessageItem(
                                     .clickable { showImageDialog = true },
                                 contentScale = ContentScale.Crop
                             )
-                            if (content.replace(url, "").isNotBlank()) {
+                            if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = content.replace(url, "").trim(),
+                                    text = url?.let { content.replace(it, "").trim() } ?: content.trim(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1601,10 +1601,10 @@ fun MessageItem(
                         url != null && (url.endsWith(".mp3", true) || url.endsWith(".m4a", true) || url.endsWith(".wav", true)) -> {
                             // Sesli mesaj oynatıcı (placeholder)
                             Text("[Sesli mesaj oynatıcı buraya gelecek]", color = Color.Gray)
-                            if (content.replace(url, "").isNotBlank()) {
+                            if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = content.replace(url, "").trim(),
+                                    text = url?.let { content.replace(it, "").trim() } ?: content.trim(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1622,10 +1622,10 @@ fun MessageItem(
                                     modifier = Modifier.clickable { /* Dosyayı aç */ }
                                 )
                             }
-                            if (content.replace(url, "").isNotBlank()) {
+                            if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = content.replace(url, "").trim(),
+                                    text = url?.let { content.replace(it, "").trim() } ?: content.trim(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
