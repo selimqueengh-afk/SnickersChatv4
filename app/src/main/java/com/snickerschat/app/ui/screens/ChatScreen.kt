@@ -59,6 +59,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -1555,16 +1558,93 @@ fun MessageItem(
                         )
                     }
                 } else {
-                    // Normal message
-                    Text(
-                        text = messageWithUser.message.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isFromCurrentUser) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                    // Medya önizleme: Cloudinary linki varsa uygun şekilde göster
+                    val content = messageWithUser.message.content
+                    val urlRegex = Regex("https://res.cloudinary.com/[^\s]+\.(jpg|jpeg|png|gif|mp3|m4a|wav|pdf|docx|xlsx|pptx|txt|zip|rar)")
+                    val match = urlRegex.find(content)
+                    val url = match?.value
+                    when {
+                        url != null && url.endsWith(".jpg", true) || url.endsWith(".jpeg", true) || url.endsWith(".png", true) || url.endsWith(".gif", true) -> {
+                            // Resim önizlemesi
+                            var showImageDialog by remember { mutableStateOf(false) }
+                            if (showImageDialog) {
+                                Dialog(onDismissRequest = { showImageDialog = false }) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        AsyncImage(
+                                            model = url,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxWidth(0.9f)
+                                                .aspectRatio(1f)
+                                                .clip(RoundedCornerShape(16.dp)),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                }
+                            }
+                            AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(180.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { showImageDialog = true },
+                                contentScale = ContentScale.Crop
+                            )
+                            if (content.replace(url, "").isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = content.replace(url, "").trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    )
+                        url != null && (url.endsWith(".mp3", true) || url.endsWith(".m4a", true) || url.endsWith(".wav", true)) -> {
+                            // Sesli mesaj oynatıcı (placeholder)
+                            Text("[Sesli mesaj oynatıcı buraya gelecek]", color = Color.Gray)
+                            if (content.replace(url, "").isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = content.replace(url, "").trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        url != null -> {
+                            // Dosya önizlemesi
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.InsertDriveFile, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = url.substringAfterLast('/'),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable { /* Dosyayı aç */ }
+                                )
+                            }
+                            if (content.replace(url, "").isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = content.replace(url, "").trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        else -> {
+                            Text(
+                                text = content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isFromCurrentUser) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(4.dp))
