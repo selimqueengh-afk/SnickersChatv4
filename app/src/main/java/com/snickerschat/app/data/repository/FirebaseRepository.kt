@@ -499,8 +499,10 @@ class FirebaseRepository {
             println("FirebaseRepository: Chat room updated successfully")
             println("FirebaseRepository: Message saved to RTDB and Firestore")
             
-            // Send push notification via backend
-            sendPushNotification(senderId, receiverId, content, chatRoomId)
+            // Send push notification via backend in background
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                sendPushNotification(senderId, receiverId, content, chatRoomId)
+            }
 
             // --- FCM PUSH NOTIFICATION (AFTER SUCCESSFUL MESSAGE SAVE) ---
             // Run FCM push in separate coroutine to not block message sending
