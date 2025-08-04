@@ -497,13 +497,16 @@ class FirebaseRepository {
             println("FirebaseRepository: Chat room updated successfully")
             println("FirebaseRepository: Message saved to RTDB and Firestore")
 
-            // --- FCM PUSH NOTIFICATION ---
-            val receiverTokenResult = getFCMTokenForUser(receiverId)
-            val receiverToken = receiverTokenResult.getOrNull()
-            if (!receiverToken.isNullOrBlank()) {
-                // Run FCM push in background coroutine
-                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                    try {
+            // --- FCM PUSH NOTIFICATION (AFTER SUCCESSFUL MESSAGE SAVE) ---
+            // Run FCM push in separate coroutine to not block message sending
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    println("FCM: Starting push notification process...")
+                    val receiverTokenResult = getFCMTokenForUser(receiverId)
+                    val receiverToken = receiverTokenResult.getOrNull()
+                    
+                    if (!receiverToken.isNullOrBlank()) {
+                        println("FCM: Found token for receiver $receiverId: ${receiverToken.take(20)}...")
                         sendFCMPushNotification(
                             token = receiverToken,
                             title = "Yeni Mesaj",
@@ -511,12 +514,14 @@ class FirebaseRepository {
                             chatRoomId = chatRoomId,
                             senderId = senderId
                         )
-                    } catch (e: Exception) {
-                        println("FCM: Error sending push notification: ${e.message}")
+                    } else {
+                        println("FCM: No token found for receiver $receiverId")
+                        println("FCM: Token result: $receiverTokenResult")
                     }
+                } catch (e: Exception) {
+                    println("FCM: Error in push notification process: ${e.message}")
+                    e.printStackTrace()
                 }
-            } else {
-                println("FCM: No token found for receiver $receiverId")
             }
             // --- END FCM PUSH ---
 
@@ -1077,37 +1082,65 @@ class FirebaseRepository {
     private suspend fun sendFCMPushNotification(token: String, title: String, body: String, chatRoomId: String, senderId: String) {
         withContext(Dispatchers.IO) {
             try {
+                println("FCM: Preparing to send push notification...")
+                println("FCM: Token: ${token.take(20)}...")
+                println("FCM: Title: $title")
+                println("FCM: Body: $body")
+                println("FCM: ChatRoomId: $chatRoomId")
+                println("FCM: SenderId: $senderId")
+                
                 // FCM HTTP v1 API endpoint
                 val FCM_API = "https://fcm.googleapis.com/fcm/send"
                 val SERVER_KEY = "key=BEojipfPOa3zG3WJHEIMzR-XJPUfNVpg3d5a05MIjW4yIE1klzKJtamHZM7qvVUgbs_DoWHz-IgX5ynJhSgOrDw"
+                
+                println("FCM: Using API: $FCM_API")
+                println("FCM: Server key: ${SERVER_KEY.take(20)}...")
+                
                 val client = OkHttpClient()
                 val json = JSONObject().apply {
                     put("to", token)
                     put("notification", JSONObject().apply {
                         put("title", title)
                         put("body", body)
+                        put("sound", "default")
+                        put("priority", "high")
                     })
                     put("data", JSONObject().apply {
                         put("chatRoomId", chatRoomId)
                         put("senderId", senderId)
+                        put("click_action", "FLUTTER_NOTIFICATION_CLICK")
                     })
+                    put("priority", "high")
                 }
-                val bodyReq = json.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+                
+                val jsonString = json.toString()
+                println("FCM: JSON payload: $jsonString")
+                
+                val bodyReq = jsonString.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
                 val request = Request.Builder()
                     .url(FCM_API)
                     .addHeader("Authorization", SERVER_KEY)
                     .addHeader("Content-Type", "application/json")
                     .post(bodyReq)
                     .build()
+                
+                println("FCM: Sending HTTP request...")
                 client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+                    println("FCM: Response code: ${response.code}")
+                    println("FCM: Response message: ${response.message}")
+                    println("FCM: Response body: $responseBody")
+                    
                     if (response.isSuccessful) {
                         println("FCM: Push notification sent successfully!")
                     } else {
                         println("FCM: Failed to send push notification: ${response.code} ${response.message}")
+                        println("FCM: Error response: $responseBody")
                     }
                 }
             } catch (e: Exception) {
                 println("FCM: Exception in sendFCMPushNotification: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
