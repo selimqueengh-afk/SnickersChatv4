@@ -534,34 +534,6 @@ class FirebaseRepository {
                 sendPushNotification(senderId, receiverId, content, chatRoomId)
             }
 
-            // --- FCM PUSH NOTIFICATION (AFTER SUCCESSFUL MESSAGE SAVE) ---
-            // Run FCM push in separate coroutine to not block message sending
-            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    println("FCM: Starting push notification process...")
-                    val receiverTokenResult = getFCMTokenForUser(receiverId)
-                    val receiverToken = receiverTokenResult.getOrNull()
-                    
-                    if (!receiverToken.isNullOrBlank()) {
-                        println("FCM: Found token for receiver $receiverId: ${receiverToken.take(20)}...")
-                        sendFCMPushNotification(
-                            token = receiverToken,
-                            title = "Yeni Mesaj",
-                            body = content,
-                            chatRoomId = chatRoomId,
-                            senderId = senderId
-                        )
-                    } else {
-                        println("FCM: No token found for receiver $receiverId")
-                        println("FCM: Token result: $receiverTokenResult")
-                    }
-                } catch (e: Exception) {
-                    println("FCM: Error in push notification process: ${e.message}")
-                    e.printStackTrace()
-                }
-            }
-            // --- END FCM PUSH ---
-
             Result.success(message)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
