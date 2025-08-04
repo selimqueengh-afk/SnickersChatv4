@@ -1075,21 +1075,6 @@ fun ChatScreen(
                         }
                         item {
                             MediaOptionCard(
-                                icon = Icons.Default.Mic,
-                                title = "Sesli Mesaj",
-                                subtitle = if (isRecording) "Kaydediliyor..." else "Ses kaydet",
-                                onClick = {
-                                    if (!isRecording) {
-                                        startAudioRecording()
-                                    } else {
-                                        stopAudioRecording()
-                                    }
-                                    showMediaPickerDialog = false
-                                }
-                            )
-                        }
-                        item {
-                            MediaOptionCard(
                                 icon = Icons.Default.AttachFile,
                                 title = "Dosya",
                                 subtitle = "Dosya seç",
