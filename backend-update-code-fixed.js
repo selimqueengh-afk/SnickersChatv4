@@ -8,7 +8,7 @@ app.get('/api/app/version', (req, res) => {
         const latestVersion = {
             version: "1.0.1",
             versionCode: 2,
-            downloadUrl: "https://github.com/selimqueengh-afk/SnickersChatv4/releases/download/v1.0.1/app-debug.apk",
+            downloadUrl: "https://github.com/selimqueengh-afk/SnickersChatv4/releases/download/snickerschat/app-debug.apk",
             releaseNotes: [
                 "🚀 Uygulama içi güncelleme sistemi eklendi",
                 "🎨 Şık ve modern güncelleme dialog'u",
