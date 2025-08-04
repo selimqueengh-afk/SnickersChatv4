@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -1764,37 +1765,7 @@ fun MessageItem(
                                     .size(180.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable { showImageDialog = true },
-                                contentScale = ContentScale.Crop,
-                                size = Size(180, 180),
-                                error = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(180.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.BrokenImage,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                },
-                                placeholder = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(180.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
+                                contentScale = ContentScale.Crop
                             )
                             if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
