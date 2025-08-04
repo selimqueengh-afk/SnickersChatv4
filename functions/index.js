@@ -18,7 +18,7 @@ exports.sendNotification = functions.firestore
       const senderDoc = await admin.firestore().collection('users').doc(senderId).get();
       const senderName = senderDoc.exists ? senderDoc.data().username : 'Kullanıcı';
       
-      // Get receiver's FCM token
+      // Get receiver's FCM token and online status
       const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
       
       if (!receiverDoc.exists) {
@@ -28,6 +28,17 @@ exports.sendNotification = functions.firestore
       
       const receiverData = receiverDoc.data();
       const fcmToken = receiverData.fcmToken;
+      
+      // Check if user is online
+      const userStatusRef = admin.database().ref(`userStatus/${receiverId}`);
+      const statusSnapshot = await userStatusRef.once('value');
+      const isOnline = statusSnapshot.val()?.isOnline || false;
+      
+      // Only send notification if user is offline
+      if (isOnline) {
+        console.log('User is online, skipping notification:', receiverId);
+        return null;
+      }
       
       if (!fcmToken) {
         console.log('No FCM token found for receiver:', receiverId);
