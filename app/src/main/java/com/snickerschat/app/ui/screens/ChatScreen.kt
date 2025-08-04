@@ -1420,73 +1420,105 @@ fun AudioMessagePlayer(
     val progress = if (duration > 0) position / duration.toFloat() else 0f
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
         ),
         modifier = Modifier
-            .fillMaxWidth(0.7f)
-            .padding(vertical = 4.dp)
+            .fillMaxWidth(0.75f)
+            .padding(vertical = 6.dp)
+            .shadow(12.dp, RoundedCornerShape(20.dp))
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            IconButton(
-                onClick = {
-                    if (player.isPlaying) player.pause() else player.play()
-                },
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = if (isFromCurrentUser) listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary) else listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.surfaceVariant)
-                        ),
-                        shape = CircleShape
-                    )
+            // Header with play button and title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Durdur" else "Oynat",
-                    tint = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Slider(
-                    value = progress,
-                    onValueChange = {
-                        userSeeking = true
-                        position = (it * duration).toLong()
+                IconButton(
+                    onClick = {
+                        if (player.isPlaying) player.pause() else player.play()
                     },
-                    onValueChangeFinished = {
-                        player.seekTo(position)
-                        userSeeking = false
-                    },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        activeTrackColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                    ),
-                    modifier = Modifier.height(24.dp)
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = if (isFromCurrentUser) listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary) else listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary)
+                            ),
+                            shape = CircleShape
+                        )
+                        .shadow(8.dp, CircleShape)
                 ) {
-                    Text(
-                        text = formatMillis(position),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = formatMillis(duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Durdur" else "Oynat",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "🎵 Sesli Mesaj",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isPlaying) "▶️ Oynatılıyor..." else "⏸️ Duraklatıldı",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Progress bar
+            Slider(
+                value = progress,
+                onValueChange = {
+                    userSeeking = true
+                    position = (it * duration).toLong()
+                },
+                onValueChangeFinished = {
+                    player.seekTo(position)
+                    userSeeking = false
+                },
+                valueRange = 0f..1f,
+                colors = SliderDefaults.colors(
+                    thumbColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    activeTrackColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    inactiveTrackColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                ),
+                modifier = Modifier.height(32.dp)
+            )
+            
+            // Time display
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = formatMillis(position),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = formatMillis(duration),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
@@ -1911,38 +1943,44 @@ fun FileMessagePreview(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            containerColor = if (isFromCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
         ),
         modifier = Modifier
             .fillMaxWidth(0.7f)
             .padding(vertical = 4.dp)
+            .shadow(8.dp, RoundedCornerShape(16.dp))
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.InsertDriveFile,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(32.dp),
+                tint = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = fileInfo.fileName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Dosyayı indirmek için tıklayın",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    text = "📥 İndirmek için tıklayın",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             IconButton(
                 onClick = {
                     try {
@@ -1957,13 +1995,19 @@ fun FileMessagePreview(
                         context.startActivity(intent)
                     }
                 },
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
+                    )
+                    .shadow(4.dp, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Download,
                     contentDescription = "İndir",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
