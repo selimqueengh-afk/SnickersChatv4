@@ -72,6 +72,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ExoPlayer.Builder
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -787,8 +790,7 @@ fun ChatScreen(
                     }
                 } else {
                     var isRecordingButtonPressed by remember { mutableStateOf(false) }
-                    IconButton(
-                        onClick = {},
+                    Box(
                         modifier = Modifier
                             .size(32.dp)
                             .background(
@@ -796,6 +798,25 @@ fun ChatScreen(
                                 shape = CircleShape
                             )
                             .shadow(4.dp, CircleShape)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        isRecordingButtonPressed = true
+                                        startAudioRecording()
+                                    },
+                                    onPress = {
+                                        val pressSucceeded = tryAwaitRelease()
+                                        if (isRecordingButtonPressed && pressSucceeded) {
+                                            stopAudioRecording()
+                                            isRecordingButtonPressed = false
+                                        } else if (isRecordingButtonPressed) {
+                                            stopAudioRecording()
+                                            isRecordingButtonPressed = false
+                                        }
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
