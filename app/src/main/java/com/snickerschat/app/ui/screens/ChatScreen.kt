@@ -700,6 +700,25 @@ fun ChatScreen(
                 modifier = Modifier.padding(8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
+                // Ataç tuşu en solda
+                IconButton(
+                    onClick = { showMediaPickerDialog = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "Medya Ekle",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                // Yazı kutusu ortada
                 OutlinedTextField(
                     value = messageText,
                     onValueChange = { messageText = it },
@@ -719,68 +738,11 @@ fun ChatScreen(
                     ),
                     maxLines = 4
                 )
-                // Ataç tuşu (küçültüldü)
-                IconButton(
-                    onClick = {
-                        showMediaPickerDialog = true
-                    },
-                    modifier = Modifier
-                        .size(36.dp) // Küçültüldü
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AttachFile,
-                        contentDescription = "Medya Ekle",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp) // Küçük ikon
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                // Sesli mesaj tuşu (mikrofon)
-                var isRecordingButtonPressed by remember { mutableStateOf(false) }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            color = if (isRecordingButtonPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape
-                        )
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    isRecordingButtonPressed = true
-                                    startAudioRecording()
-                                },
-                                onPress = {
-                                    val pressSucceeded = tryAwaitRelease()
-                                    if (isRecordingButtonPressed && pressSucceeded) {
-                                        stopAudioRecording()
-                                        isRecordingButtonPressed = false
-                                    } else if (isRecordingButtonPressed) {
-                                        // Parmağı kaydırıp bırakırsa da kaydı bitir
-                                        stopAudioRecording()
-                                        isRecordingButtonPressed = false
-                                    }
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Sesli Mesaj Gönder",
-                        tint = if (isRecordingButtonPressed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                // Mesaj gönderme tuşu (küçültüldü)
-                FloatingActionButton(
-                    onClick = {
-                        if (messageText.trim().isNotEmpty()) {
+                Spacer(modifier = Modifier.width(6.dp))
+                // Sağda: mesaj varsa gönder, yoksa mikrofon
+                if (messageText.trim().isNotEmpty()) {
+                    FloatingActionButton(
+                        onClick = {
                             val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                             if (receiverId.isNotEmpty() && receiverId != currentUserId) {
                                 val finalMessage = if (replyingToMessage != null) {
@@ -794,17 +756,53 @@ fun ChatScreen(
                             } else {
                                 chatViewModel.showError("Mesaj gönderilemedi: Alıcı bulunamadı")
                             }
-                        }
-                    },
-                    modifier = Modifier.size(36.dp), // Küçültüldü
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = stringResource(R.string.send),
-                        modifier = Modifier.size(18.dp)
-                    )
+                        },
+                        modifier = Modifier.size(40.dp),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = stringResource(R.string.send),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                } else {
+                    var isRecordingButtonPressed by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = if (isRecordingButtonPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        isRecordingButtonPressed = true
+                                        startAudioRecording()
+                                    },
+                                    onPress = {
+                                        val pressSucceeded = tryAwaitRelease()
+                                        if (isRecordingButtonPressed && pressSucceeded) {
+                                            stopAudioRecording()
+                                            isRecordingButtonPressed = false
+                                        } else if (isRecordingButtonPressed) {
+                                            stopAudioRecording()
+                                            isRecordingButtonPressed = false
+                                        }
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Sesli Mesaj Gönder",
+                            tint = if (isRecordingButtonPressed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
