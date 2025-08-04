@@ -1190,9 +1190,16 @@ class FirebaseRepository {
         chatRoomId: String
     ) {
         try {
+            println("DEBUG: Starting backend push notification...")
+            println("DEBUG: senderId: $senderId")
+            println("DEBUG: receiverId: $receiverId")
+            println("DEBUG: message: $message")
+            println("DEBUG: chatRoomId: $chatRoomId")
+            
             // Get sender's name
             val senderDoc = usersCollection.document(senderId).get().await()
             val senderName = senderDoc.getString("username") ?: "Kullanıcı"
+            println("DEBUG: senderName: $senderName")
             
             // Create notification request
             val request = NotificationRequest(
@@ -1202,17 +1209,24 @@ class FirebaseRepository {
                 message = message,
                 chatRoomId = chatRoomId
             )
+            println("DEBUG: Notification request created: $request")
             
             // Send notification via backend API
+            println("DEBUG: Sending request to backend API...")
             val response = ApiClient.backendApi.sendNotification(request)
+            println("DEBUG: Backend API response code: ${response.code()}")
+            println("DEBUG: Backend API response body: ${response.body()}")
             
             if (response.isSuccessful) {
                 println("FirebaseRepository: Push notification sent successfully via backend")
             } else {
-                println("FirebaseRepository: Failed to send push notification via backend: ${response.errorBody()?.string()}")
+                val errorBody = response.errorBody()?.string()
+                println("FirebaseRepository: Failed to send push notification via backend: ${response.code()}")
+                println("FirebaseRepository: Error response: $errorBody")
             }
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending push notification via backend: ${e.message}")
+            e.printStackTrace()
         }
     }
 }
