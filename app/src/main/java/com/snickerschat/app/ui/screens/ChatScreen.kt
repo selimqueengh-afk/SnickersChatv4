@@ -1700,7 +1700,7 @@ fun MessageItem(
                 } else {
                     // Medya önizleme: Cloudinary linki varsa uygun şekilde göster
                     val content = messageWithUser.message.content
-                    val urlRegex = Regex("https://res.cloudinary.com/[^\\s]+\\.(jpg|jpeg|png|gif|mp3|m4a|wav|pdf|docx|xlsx|pptx|txt|zip|rar)")
+                    val urlRegex = Regex("https://res.cloudinary.com/[^\\s]+\\.(jpg|jpeg|png|gif|mp3|m4a|wav|mp4|pdf|docx|xlsx|pptx|txt|zip|rar)")
                     val match = urlRegex.find(content)
                     val url = match?.value
                     when {
@@ -1740,12 +1740,22 @@ fun MessageItem(
                                 )
                             }
                         }
-                        url != null && (url.endsWith(".mp3", true) || url.endsWith(".m4a", true) || url.endsWith(".wav", true)) -> {
-                            // WhatsApp-style audio player
-                            AudioMessagePlayer(
-                                audioUrl = url,
-                                isFromCurrentUser = isFromCurrentUser
-                            )
+                        url != null && (url.endsWith(".mp3", true) || url.endsWith(".m4a", true) || url.endsWith(".wav", true) || url.endsWith(".mp4", true)) -> {
+                            // Check if this is an audio message (contains audio indicator)
+                            if (content.contains("🎵") || content.contains("Sesli Mesaj")) {
+                                // WhatsApp-style audio player
+                                AudioMessagePlayer(
+                                    audioUrl = url,
+                                    isFromCurrentUser = isFromCurrentUser
+                                )
+                            } else {
+                                // Regular video file
+                                Text(
+                                    text = "[Video dosyası]",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -1879,26 +1889,22 @@ fun FileMessagePreview(
 ) {
     val context = LocalContext.current
     val fileInfo = remember(fileUrl) {
-        val uri = Uri.parse(fileUrl)
-        val fileName = uri.lastPathSegment ?: "Dosya"
-        val fileSize = try {
-            val contentResolver = context.contentResolver
-            val file = File(fileUrl)
-            if (file.exists()) {
-                val length = file.length()
-                if (length < 1024) {
-                    "$length B"
-                } else if (length < 1024 * 1024) {
-                    "%.1f KB".format(length / 1024.0)
-                } else {
-                    "%.1f MB".format(length / 1024.0 / 1024.0)
-                }
+        val fileName = try {
+            val uri = Uri.parse(fileUrl)
+            val pathSegments = uri.pathSegments
+            if (pathSegments.isNotEmpty()) {
+                val lastSegment = pathSegments.last()
+                // Decode URL encoded characters
+                java.net.URLDecoder.decode(lastSegment, "UTF-8")
             } else {
-                "Dosya bulunamadı"
+                "Dosya"
             }
         } catch (e: Exception) {
-            "Hata: ${e.message}"
+            "Dosya"
         }
+        
+        val fileSize = "Dosya" // We can't get actual file size from URL without downloading
+        
         FilePreviewInfo(fileName, fileSize)
     }
 
@@ -1926,10 +1932,12 @@ fun FileMessagePreview(
                 Text(
                     text = fileInfo.fileName,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = fileInfo.fileSize,
+                    text = "Dosyayı indirmek için tıklayın",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -1937,18 +1945,24 @@ fun FileMessagePreview(
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(Uri.parse(fileUrl), context.contentResolver.getType(Uri.parse(fileUrl)))
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(Uri.parse(fileUrl), "*/*")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        // Fallback: try to open in browser
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl))
+                        context.startActivity(intent)
                     }
-                    context.startActivity(intent)
                 },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Download,
                     contentDescription = "İndir",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             }
