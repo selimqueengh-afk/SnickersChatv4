@@ -598,4 +598,26 @@ class FirebaseRepository {
         
         awaitClose { typingStatusRef.child(chatRoomId).removeEventListener(listener) }
     }
+    
+    // FCM Token Management
+    suspend fun saveFCMToken(userId: String, token: String): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update("fcmToken", token).await()
+            println("FirebaseRepository: FCM token saved for user: $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error saving FCM token: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getFCMToken(userId: String): String? {
+        return try {
+            val userDoc = usersCollection.document(userId).get().await()
+            userDoc.getString("fcmToken")
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error getting FCM token: ${e.message}")
+            null
+        }
+    }
 }
