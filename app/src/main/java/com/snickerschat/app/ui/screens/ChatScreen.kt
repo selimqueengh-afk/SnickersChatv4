@@ -61,6 +61,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import coil.request.CachePolicy
+import coil.size.Size
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -528,7 +530,8 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
                 ) {
                     items(
                         items = chatState.messages,
@@ -1761,7 +1764,37 @@ fun MessageItem(
                                     .size(180.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable { showImageDialog = true },
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Crop,
+                                size = Size(180, 180),
+                                error = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(180.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.BrokenImage,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                placeholder = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(180.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             )
                             if (url != null && content.replace(url, "").isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))

@@ -32,11 +32,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val rtdb = FirebaseDatabase.getInstance()
+    
+    // Optimized coroutine scope for background operations
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     // Collections
     private val usersCollection = firestore.collection("users")
@@ -544,7 +548,7 @@ class FirebaseRepository {
             println("FirebaseRepository: Message saved to RTDB and Firestore")
             
             // Send push notification via backend in background
-            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            backgroundScope.launch {
                 sendPushNotification(senderId, receiverId, content, chatRoomId)
             }
 

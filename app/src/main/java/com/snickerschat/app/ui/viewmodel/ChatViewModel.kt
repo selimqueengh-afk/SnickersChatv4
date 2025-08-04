@@ -2,6 +2,7 @@ package com.snickerschat.app.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewModelScope
 import com.snickerschat.app.data.repository.FirebaseRepository
 import com.snickerschat.app.data.model.User
 import com.snickerschat.app.ui.state.ChatState
@@ -26,6 +27,12 @@ class ChatViewModel(
     
     private val _chatState = MutableStateFlow(ChatState())
     val chatState: StateFlow<ChatState> = _chatState.asStateFlow()
+    
+    // Memory optimization: Clear messages when ViewModel is cleared
+    override fun onCleared() {
+        super.onCleared()
+        _chatState.value = _chatState.value.copy(messages = emptyList())
+    }
     
     fun loadMessages(chatRoomId: String) {
         viewModelScope.launch {
