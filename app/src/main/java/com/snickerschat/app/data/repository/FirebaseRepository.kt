@@ -301,14 +301,21 @@ class FirebaseRepository {
     // Friend requests
     suspend fun sendFriendRequest(receiverId: String): Result<Unit> {
         return try {
+            println("DEBUG: Starting sendFriendRequest...")
+            println("DEBUG: receiverId: $receiverId")
+            
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("DEBUG: senderId: $senderId")
             val request = FriendRequest(
                 senderId = senderId,
                 receiverId = receiverId
             )
             friendRequestsCollection.add(request).await()
+            println("DEBUG: Friend request sent successfully")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("DEBUG: Error sending friend request: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -458,7 +465,12 @@ class FirebaseRepository {
     
     suspend fun sendMessage(receiverId: String, content: String): Result<Message> {
         return try {
+            println("DEBUG: Starting sendMessage...")
+            println("DEBUG: receiverId: $receiverId")
+            println("DEBUG: content: $content")
+            
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("DEBUG: senderId: $senderId")
             val messageId = messagesCollection.document().id // Generate ID
             val now = System.currentTimeMillis()
             
@@ -537,6 +549,7 @@ class FirebaseRepository {
             Result.success(message)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
