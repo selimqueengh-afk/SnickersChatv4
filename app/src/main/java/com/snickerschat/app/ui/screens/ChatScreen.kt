@@ -128,7 +128,11 @@ fun ChatScreen(
     fun startAudioRecording() {
         try {
             audioFile = File.createTempFile("audio_", ".mp3", context.cacheDir)
-            audioRecorder = MediaRecorder(context).apply {
+            audioRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                MediaRecorder()
+            }.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
