@@ -103,4 +103,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.media3:media3-exoplayer:1.1.1")
     implementation("androidx.media3:media3-ui:1.1.1")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("org.json:json:20230618")
 }

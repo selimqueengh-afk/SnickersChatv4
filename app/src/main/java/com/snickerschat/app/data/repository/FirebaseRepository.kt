@@ -21,6 +21,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import java.util.*
 import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -434,7 +439,7 @@ class FirebaseRepository {
                     chatRoom?.participants?.contains(receiverId) == true
                 }
             
-            println("FirebaseRepository: Found ${chatRoomQuery.size} existing chat rooms")
+            println("FirebaseRepository: Found "+chatRoomQuery.size+" existing chat rooms")
             
             val chatRoomId = if (chatRoomQuery.isNotEmpty()) {
                 chatRoomQuery.first().id
@@ -487,6 +492,23 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Chat room updated successfully")
             println("FirebaseRepository: Message saved to RTDB and Firestore")
+
+            // --- FCM PUSH NOTIFICATION ---
+            val receiverTokenResult = getFCMTokenForUser(receiverId)
+            val receiverToken = receiverTokenResult.getOrNull()
+            if (!receiverToken.isNullOrBlank()) {
+                sendFCMPushNotification(
+                    token = receiverToken,
+                    title = "Yeni Mesaj",
+                    body = content,
+                    chatRoomId = chatRoomId,
+                    senderId = senderId
+                )
+            } else {
+                println("FCM: No token found for receiver $receiverId")
+            }
+            // --- END FCM PUSH ---
+
             Result.success(message)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
@@ -1038,6 +1060,39 @@ class FirebaseRepository {
         awaitClose { 
             println("FirebaseRepository: Removing message read status listener for chat: $chatRoomId")
             messageReadRef.child(chatRoomId).removeEventListener(listener) 
+        }
+    }
+
+    private fun sendFCMPushNotification(token: String, title: String, body: String, chatRoomId: String, senderId: String) {
+        // FCM HTTP v1 API endpoint
+        val FCM_API = "https://fcm.googleapis.com/fcm/send"
+        // TODO: Kendi sunucundan veya güvenli bir yerden al! Şimdilik test için buraya yazıyoruz.
+        val SERVER_KEY = "key=YOUR_FCM_SERVER_KEY_HERE"
+        val client = OkHttpClient()
+        val json = JSONObject().apply {
+            put("to", token)
+            put("notification", JSONObject().apply {
+                put("title", title)
+                put("body", body)
+            })
+            put("data", JSONObject().apply {
+                put("chatRoomId", chatRoomId)
+                put("senderId", senderId)
+            })
+        }
+        val bodyReq = json.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+        val request = Request.Builder()
+            .url(FCM_API)
+            .addHeader("Authorization", SERVER_KEY)
+            .addHeader("Content-Type", "application/json")
+            .post(bodyReq)
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                println("FCM: Push notification sent successfully!")
+            } else {
+                println("FCM: Failed to send push notification: ${response.code} ${response.message}")
+            }
         }
     }
 }
