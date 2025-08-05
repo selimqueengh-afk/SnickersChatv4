@@ -1205,14 +1205,13 @@ class FirebaseRepository {
             println("🔥 DEBUG: message: $message")
             println("🔥 DEBUG: chatRoomId: $chatRoomId")
             
-            // --- GEÇİCİ: Online/offline kontrolü kaldırıldı ---
-            // val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
-            // val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
-            // if (isOnline) {
-            //     println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
-            //     return
-            // }
-            // --- /GEÇİCİ ---
+            // Alıcı çevrimdışı mı kontrol et
+            val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
+            val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+            if (isOnline) {
+                println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
+                return
+            }
             
             // Get sender's name
             println("🔥 DEBUG: Sender name alınıyor...")
