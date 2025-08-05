@@ -34,9 +34,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 
+internal val firestore = FirebaseFirestore.getInstance()
+
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance()
     private val rtdb = FirebaseDatabase.getInstance()
     
     // Optimized coroutine scope for background operations
