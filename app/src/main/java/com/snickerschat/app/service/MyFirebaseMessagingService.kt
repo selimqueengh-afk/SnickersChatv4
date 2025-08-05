@@ -119,7 +119,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setVibrate(longArrayOf(0, 250, 250, 250))
             .setLights(0xFF2196F3.toInt(), 3000, 3000)
             .setStyle(createMessageStyle(senderName, message, messageType))
-            .addAction(R.drawable.ic_launcher_foreground, "Yanıtla", replyPendingIntent)
             .addAction(R.drawable.ic_launcher_foreground, "Görüntüle", pendingIntent)
 
         // Add sender avatar if available
