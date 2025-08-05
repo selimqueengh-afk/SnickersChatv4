@@ -37,31 +37,28 @@ app.post('/api/send-notification', async (req, res) => {
         
         console.log('Received notification request:', { receiverId, senderId, senderName, message, chatRoomId });
         
-        // Get receiver's FCM token from Firestore
-        const db = admin.firestore();
-        console.log('DEBUG: Looking for user document:', receiverId);
-        const userDoc = await db.collection('users').doc(receiverId).get();
+        // Get receiver's FCM token from RTDB (not Firestore)
+        const rtdb = admin.database();
+        console.log('DEBUG: Looking for FCM token in RTDB for user:', receiverId);
+        const fcmTokenSnapshot = await rtdb.ref(`fcm_tokens/${receiverId}`).once('value');
         
-        console.log('DEBUG: User document exists:', userDoc.exists);
+        console.log('DEBUG: FCM token snapshot exists:', fcmTokenSnapshot.exists());
         
-        if (!userDoc.exists) {
-            console.log('User not found:', receiverId);
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
-        
-        const userData = userDoc.data();
-        console.log('DEBUG: User data keys:', Object.keys(userData));
-        console.log('DEBUG: User data:', userData);
-        
-        const fcmToken = userData.fcmToken;
-        console.log('DEBUG: FCM token found:', fcmToken ? 'YES' : 'NO');
-        
-        if (!fcmToken) {
-            console.log('No FCM token found for user:', receiverId);
+        if (!fcmTokenSnapshot.exists()) {
+            console.log('No FCM token found in RTDB for user:', receiverId);
             return res.status(404).json({ success: false, message: 'FCM token not found' });
         }
         
-        // Get sender's avatar from Firestore
+        const fcmToken = fcmTokenSnapshot.val();
+        console.log('DEBUG: FCM token found:', fcmToken ? 'YES' : 'NO');
+        
+        if (!fcmToken) {
+            console.log('FCM token is null for user:', receiverId);
+            return res.status(404).json({ success: false, message: 'FCM token is null' });
+        }
+        
+        // Get sender's avatar from Firestore (for notification display)
+        const db = admin.firestore();
         const senderDoc = await db.collection('users').doc(senderId).get();
         const senderData = senderDoc.exists ? senderDoc.data() : {};
         const senderAvatar = senderData.profileImageUrl || "";
