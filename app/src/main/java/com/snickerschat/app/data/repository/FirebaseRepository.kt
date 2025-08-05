@@ -551,7 +551,12 @@ class FirebaseRepository {
             
             // Send push notification via backend in background
             backgroundScope.launch {
-                sendPushNotification(senderId, receiverId, content, chatRoomId)
+                try {
+                    sendPushNotification(senderId, receiverId, content, chatRoomId)
+                } catch (e: Exception) {
+                    println("FirebaseRepository: Error sending push notification: ${e.message}")
+                    // Bildirim hatası mesaj gönderme işlemini etkilemesin
+                }
             }
 
             Result.success(message)
