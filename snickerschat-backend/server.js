@@ -39,7 +39,10 @@ app.post('/api/send-notification', async (req, res) => {
         
         // Get receiver's FCM token from Firestore
         const db = admin.firestore();
+        console.log('DEBUG: Looking for user document:', receiverId);
         const userDoc = await db.collection('users').doc(receiverId).get();
+        
+        console.log('DEBUG: User document exists:', userDoc.exists);
         
         if (!userDoc.exists) {
             console.log('User not found:', receiverId);
@@ -47,7 +50,11 @@ app.post('/api/send-notification', async (req, res) => {
         }
         
         const userData = userDoc.data();
+        console.log('DEBUG: User data keys:', Object.keys(userData));
+        console.log('DEBUG: User data:', userData);
+        
         const fcmToken = userData.fcmToken;
+        console.log('DEBUG: FCM token found:', fcmToken ? 'YES' : 'NO');
         
         if (!fcmToken) {
             console.log('No FCM token found for user:', receiverId);
@@ -81,6 +88,8 @@ app.post('/api/send-notification', async (req, res) => {
             },
             token: fcmToken
         };
+        
+        console.log('DEBUG: Sending notification to FCM token:', fcmToken.substring(0, 20) + '...');
         
         // Send notification
         const response = await admin.messaging().send(notificationMessage);
