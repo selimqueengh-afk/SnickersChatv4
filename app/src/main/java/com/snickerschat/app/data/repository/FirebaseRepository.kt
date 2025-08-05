@@ -38,6 +38,7 @@ internal val firestore = FirebaseFirestore.getInstance()
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
+    internal val firestore = FirebaseFirestore.getInstance()
     private val rtdb = FirebaseDatabase.getInstance()
     
     // Optimized coroutine scope for background operations
@@ -1192,14 +1193,13 @@ class FirebaseRepository {
         chatRoomId: String
     ) {
         try {
-            // --- GEÇİCİ: Online/offline kontrolü kaldırıldı ---
-            // val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
-            // val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
-            // if (isOnline) {
-            //     println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
-            //     return
-            // }
-            // --- /GEÇİCİ ---
+            // Alıcı çevrimdışı mı kontrol et
+            val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
+            val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+            if (isOnline) {
+                println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
+                return
+            }
             
             println("DEBUG: Starting backend push notification...")
             println("DEBUG: senderId: $senderId")
