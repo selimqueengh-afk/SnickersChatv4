@@ -1191,6 +1191,14 @@ class FirebaseRepository {
         chatRoomId: String
     ) {
         try {
+            // --- YENİ: Alıcı çevrimdışı mı kontrol et ---
+            val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
+            val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+            if (isOnline) {
+                println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
+                return
+            }
+            // --- /YENİ ---
             println("DEBUG: Starting backend push notification...")
             println("DEBUG: senderId: $senderId")
             println("DEBUG: receiverId: $receiverId")
