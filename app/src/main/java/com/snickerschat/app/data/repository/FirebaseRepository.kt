@@ -1205,6 +1205,11 @@ class FirebaseRepository {
             println("🔥 DEBUG: message: $message")
             println("🔥 DEBUG: chatRoomId: $chatRoomId")
             
+            // --- GEÇİCİ: Backend'i bypass et ---
+            println("🔥 DEBUG: Backend bypass edildi - test için")
+            return
+            // --- /GEÇİCİ ---
+            
             // --- GEÇİCİ: Online/offline kontrolü kaldırıldı ---
             // val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
             // val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
