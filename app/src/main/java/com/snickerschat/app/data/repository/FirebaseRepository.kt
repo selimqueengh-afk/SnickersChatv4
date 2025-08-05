@@ -780,8 +780,13 @@ class FirebaseRepository {
     
     suspend fun saveFCMToken(userId: String, token: String): Result<Unit> {
         return try {
+            println("🔥 DEBUG: saveFCMToken başladı")
+            println("🔥 DEBUG: userId: $userId")
+            println("🔥 DEBUG: token: ${token.take(20)}...")
+            
             // Save to RTDB for real-time access
             fcmTokensRef.child(userId).setValue(token).await()
+            println("🔥 DEBUG: Token RTDB'ye kaydedildi")
             
             // Also save to Firestore for backend access
             usersCollection.document(userId).update(
@@ -790,11 +795,12 @@ class FirebaseRepository {
                     "updatedAt" to com.google.firebase.Timestamp.now()
                 )
             ).await()
+            println("🔥 DEBUG: Token Firestore'a kaydedildi")
             
-            println("FirebaseRepository: FCM token saved for user: $userId (RTDB + Firestore)")
+            println("✅ FirebaseRepository: FCM token saved for user: $userId (RTDB + Firestore)")
             Result.success(Unit)
         } catch (e: Exception) {
-            println("FirebaseRepository: Error saving FCM token: ${e.message}")
+            println("💥 FirebaseRepository: Error saving FCM token: ${e.message}")
             Result.failure(e)
         }
     }
@@ -1193,6 +1199,12 @@ class FirebaseRepository {
         chatRoomId: String
     ) {
         try {
+            println("🔥 DEBUG: sendPushNotification başladı")
+            println("🔥 DEBUG: senderId: $senderId")
+            println("🔥 DEBUG: receiverId: $receiverId")
+            println("🔥 DEBUG: message: $message")
+            println("🔥 DEBUG: chatRoomId: $chatRoomId")
+            
             // --- GEÇİCİ: Online/offline kontrolü kaldırıldı ---
             // val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
             // val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
@@ -1202,18 +1214,14 @@ class FirebaseRepository {
             // }
             // --- /GEÇİCİ ---
             
-            println("DEBUG: Starting backend push notification...")
-            println("DEBUG: senderId: $senderId")
-            println("DEBUG: receiverId: $receiverId")
-            println("DEBUG: message: $message")
-            println("DEBUG: chatRoomId: $chatRoomId")
-            
             // Get sender's name
+            println("🔥 DEBUG: Sender name alınıyor...")
             val senderDoc = usersCollection.document(senderId).get().await()
             val senderName = senderDoc.getString("username") ?: "Kullanıcı"
-            println("DEBUG: senderName: $senderName")
+            println("🔥 DEBUG: senderName: $senderName")
             
             // Create notification request
+            println("🔥 DEBUG: Notification request oluşturuluyor...")
             val request = NotificationRequest(
                 receiverId = receiverId,
                 senderId = senderId,
@@ -1221,23 +1229,23 @@ class FirebaseRepository {
                 message = message,
                 chatRoomId = chatRoomId
             )
-            println("DEBUG: Notification request created: $request")
+            println("🔥 DEBUG: Notification request: $request")
             
             // Send notification via backend API
-            println("DEBUG: Sending request to backend API...")
+            println("🔥 DEBUG: Backend API'ye istek gönderiliyor...")
             val response = ApiClient.backendApi.sendNotification(request)
-            println("DEBUG: Backend API response code: ${response.code()}")
-            println("DEBUG: Backend API response body: ${response.body()}")
+            println("🔥 DEBUG: Backend API response code: ${response.code()}")
+            println("🔥 DEBUG: Backend API response body: ${response.body()}")
             
             if (response.isSuccessful) {
-                println("FirebaseRepository: Push notification sent successfully via backend")
+                println("✅ FirebaseRepository: Push notification başarıyla gönderildi")
             } else {
                 val errorBody = response.errorBody()?.string()
-                println("FirebaseRepository: Failed to send push notification via backend: ${response.code()}")
-                println("FirebaseRepository: Error response: $errorBody")
+                println("❌ FirebaseRepository: Push notification başarısız: ${response.code()}")
+                println("❌ FirebaseRepository: Error response: $errorBody")
             }
         } catch (e: Exception) {
-            println("FirebaseRepository: Error sending push notification via backend: ${e.message}")
+            println("💥 FirebaseRepository: Push notification hatası: ${e.message}")
             e.printStackTrace()
         }
     }
