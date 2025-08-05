@@ -3,12 +3,17 @@ package com.snickerschat.app.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.text.TextUtils
+import androidx.core.app.RemoteInput
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.RingtoneManager
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import android.app.Notification
@@ -23,6 +28,9 @@ import java.io.IOException
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+
+private const val REPLY_KEY = "key_text_reply"
+private const val REPLY_ACTION = "com.snickerschat.REPLY_ACTION"
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -91,19 +99,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Create reply intent
-        val replyIntent = Intent(this, MainActivity::class.java).apply {
-            action = "REPLY_ACTION"
-            chatRoomId?.let { putExtra("chatRoomId", it) }
-            senderId?.let { putExtra("senderId", it) }
+        // Yanıtla aksiyonu için RemoteInput
+        val remoteInput = RemoteInput.Builder(REPLY_KEY)
+            .setLabel("Yanıtla")
+            .build()
+        val replyIntent = Intent(this, NotificationReplyReceiver::class.java).apply {
+            action = REPLY_ACTION
+            putExtra("chatRoomId", chatRoomId)
+            putExtra("senderId", senderId)
         }
-
-        val replyPendingIntent = PendingIntent.getActivity(
+        val replyPendingIntent = PendingIntent.getBroadcast(
             this,
-            1,
+            2,
             replyIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val replyAction = NotificationCompat.Action.Builder(
+            R.drawable.ic_launcher_foreground,
+            "Yanıtla",
+            replyPendingIntent
+        ).addRemoteInput(remoteInput).build()
 
         // Build notification with rich content
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -120,6 +135,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setLights(0xFF2196F3.toInt(), 3000, 3000)
             .setStyle(createMessageStyle(senderName, message, messageType))
             .addAction(R.drawable.ic_launcher_foreground, "Görüntüle", pendingIntent)
+            .addAction(replyAction)
 
         // Add sender avatar if available
         senderAvatar?.let { avatarUrl ->
@@ -234,6 +250,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
             } catch (e: Exception) {
                 println("Error saving FCM token: ${e.message}")
+            }
+        }
+    }
+}
+
+// Bildirimden gelen yanıtı yakalayan BroadcastReceiver
+class NotificationReplyReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == REPLY_ACTION) {
+            val chatRoomId = intent.getStringExtra("chatRoomId")
+            val senderId = intent.getStringExtra("senderId")
+            val remoteInput = RemoteInput.getResultsFromIntent(intent)
+            val replyText = remoteInput?.getCharSequence(REPLY_KEY)?.toString()
+            if (!replyText.isNullOrEmpty() && !chatRoomId.isNullOrEmpty() && !senderId.isNullOrEmpty()) {
+                // Burada mesajı doğrudan gönderecek bir servis/metot çağrılmalı
+                // Örnek: FirebaseRepository üzerinden mesaj gönderme
+                // (Gerçek uygulamada ViewModel/Repository erişimi için uygun bir yol gerekir)
+                println("Bildirimden yanıt geldi: $replyText -> chatRoomId: $chatRoomId, senderId: $senderId")
+                // TODO: Mesajı ilgili sohbete gönder
             }
         }
     }
