@@ -19,6 +19,7 @@ import com.snickerschat.app.ui.theme.SnickersChatTheme
 import com.snickerschat.app.ui.viewmodel.*
 import com.snickerschat.app.ui.components.UpdateDialog
 import com.snickerschat.app.service.UpdateManager
+import com.snickerschat.app.service.NotificationSettings
 import com.snickerschat.app.config.CloudinaryConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,9 @@ class MainActivity : ComponentActivity() {
         
         // Initialize Cloudinary
         CloudinaryConfig.init(this)
+        
+        // Initialize notification channels
+        NotificationSettings.createNotificationChannels(this)
         
         repository = FirebaseRepository()
         updateManager = UpdateManager(this)

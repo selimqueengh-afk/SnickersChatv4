@@ -5,9 +5,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
+import androidx.core.graphics.drawable.Icon
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.snickerschat.app.MainActivity
@@ -15,8 +19,18 @@ import com.snickerschat.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
+
+    companion object {
+        private const val CHANNEL_ID = "chat_messages"
+        private const val GROUP_KEY = "com.snickerschat.app.CHAT_MESSAGES"
+        private var notificationId = 0
+    }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
@@ -26,10 +40,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val title = remoteMessage.data["title"] ?: "Yeni Mesaj"
             val message = remoteMessage.data["message"] ?: "Birisi size mesaj gönderdi"
             val senderId = remoteMessage.data["senderId"]
+            val senderName = remoteMessage.data["senderName"] ?: "Bilinmeyen"
+            val senderAvatar = remoteMessage.data["senderAvatar"]
             val chatRoomId = remoteMessage.data["chatRoomId"]
+            val messageType = remoteMessage.data["messageType"] ?: "text"
 
-            // Show notification
-            showNotification(title, message, senderId, chatRoomId)
+            // Show rich notification
+            showRichNotification(title, message, senderId, senderName, senderAvatar, chatRoomId, messageType)
         }
 
         // Handle notification payload
@@ -37,44 +54,32 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val title = notification.title ?: "Yeni Mesaj"
             val message = notification.body ?: "Birisi size mesaj gönderdi"
             
-            showNotification(title, message, null, null)
+            showRichNotification(title, message, null, "Bilinmeyen", null, null, "text")
         }
     }
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Send token to your server
         sendRegistrationToServer(token)
     }
 
-    private fun showNotification(
+    private fun showRichNotification(
         title: String,
         message: String,
         senderId: String?,
-        chatRoomId: String?
+        senderName: String,
+        senderAvatar: String?,
+        chatRoomId: String?,
+        messageType: String
     ) {
-        val channelId = "chat_messages"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create notification channel for Android O and above
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Chat Messages",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Chat message notifications"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
+        // Create notification channel
+        createNotificationChannel()
 
         // Create intent to open the app
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            // Add chat room data if available
             chatRoomId?.let { putExtra("chatRoomId", it) }
             senderId?.let { putExtra("senderId", it) }
         }
@@ -86,25 +91,139 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Build notification
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Use existing icon
-            .setContentTitle(title)
-            .setContentText(message)
+        // Create reply intent
+        val replyIntent = Intent(this, MainActivity::class.java).apply {
+            action = "REPLY_ACTION"
+            chatRoomId?.let { putExtra("chatRoomId", it) }
+            senderId?.let { putExtra("senderId", it) }
+        }
+
+        val replyPendingIntent = PendingIntent.getActivity(
+            this,
+            1,
+            replyIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Build notification with rich content
+        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(senderName)
+            .setContentText(getMessagePreview(message, messageType))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setGroup(GROUP_KEY)
+            .setGroupSummary(true)
             .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-            .setVibrate(longArrayOf(1000, 1000, 1000, 1000, 1000))
-            .setLights(0xFF0000FF.toInt(), 3000, 3000)
+            .setVibrate(longArrayOf(0, 250, 250, 250))
+            .setLights(0xFF2196F3.toInt(), 3000, 3000)
+            .setStyle(createMessageStyle(senderName, message, messageType))
+            .addAction(R.drawable.ic_launcher_foreground, "Yanıtla", replyPendingIntent)
+            .addAction(R.drawable.ic_launcher_foreground, "Görüntüle", pendingIntent)
+
+        // Add sender avatar if available
+        senderAvatar?.let { avatarUrl ->
+            try {
+                val bitmap = loadBitmapFromUrl(avatarUrl)
+                bitmap?.let {
+                    notificationBuilder.setLargeIcon(it)
+                }
+            } catch (e: Exception) {
+                println("Error loading avatar: ${e.message}")
+            }
+        }
+
+        // Show notification with unique ID for grouping
+        val uniqueId = (senderId?.hashCode() ?: System.currentTimeMillis()).toInt()
+        notificationManager.notify(uniqueId, notificationBuilder.build())
+
+        // Show group summary notification
+        showGroupSummaryNotification(notificationManager)
+    }
+
+    private fun createMessageStyle(senderName: String, message: String, messageType: String): NotificationCompat.Style {
+        return NotificationCompat.MessagingStyle(Person.Builder()
+            .setName(senderName)
+            .setIcon(Icon.createWithResource(this, R.drawable.ic_launcher_foreground))
+            .build())
+            .addMessage(getMessagePreview(message, messageType), System.currentTimeMillis(), 
+                Person.Builder().setName(senderName).build())
+    }
+
+    private fun getMessagePreview(message: String, messageType: String): String {
+        return when (messageType) {
+            "image" -> "📷 Fotoğraf gönderdi"
+            "video" -> "🎥 Video gönderdi"
+            "audio" -> "🎵 Ses gönderdi"
+            "file" -> "📎 Dosya gönderdi"
+            "location" -> "📍 Konum gönderdi"
+            else -> if (message.length > 50) "${message.take(50)}..." else message
+        }
+    }
+
+    private fun loadBitmapFromUrl(url: String): Bitmap? {
+        return try {
+            val connection = URL(url).openConnection()
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.connect()
+            val input = connection.getInputStream()
+            BitmapFactory.decodeStream(input)
+        } catch (e: IOException) {
+            null
+        }
+    }
+
+    private fun showGroupSummaryNotification(notificationManager: NotificationManager) {
+        val summaryIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        val summaryPendingIntent = PendingIntent.getActivity(
+            this,
+            2,
+            summaryIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val summaryNotification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("SnickersChat")
+            .setContentText("Yeni mesajlarınız var")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setGroup(GROUP_KEY)
+            .setGroupSummary(true)
+            .setContentIntent(summaryPendingIntent)
+            .setAutoCancel(true)
             .build()
 
-        // Show notification
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        notificationManager.notify(0, summaryNotification)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Chat Messages",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Chat message notifications"
+                enableLights(true)
+                lightColor = 0xFF2196F3.toInt()
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 250, 250)
+                setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+                setAllowBubbles(true)
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
     private fun sendRegistrationToServer(token: String) {
-        // Save FCM token to Firestore
         val repository = com.snickerschat.app.data.repository.FirebaseRepository()
         CoroutineScope(Dispatchers.IO).launch {
             try {

@@ -54,16 +54,30 @@ app.post('/api/send-notification', async (req, res) => {
             return res.status(404).json({ success: false, message: 'FCM token not found' });
         }
         
-        // Prepare notification message
+        // Get sender's avatar from Firestore
+        const senderDoc = await db.collection('users').doc(senderId).get();
+        const senderData = senderDoc.exists ? senderDoc.data() : {};
+        const senderAvatar = senderData.profileImageUrl || "";
+        
+        // Determine message type
+        let messageType = "text";
+        if (message.includes("📷") || message.includes("image")) messageType = "image";
+        else if (message.includes("🎥") || message.includes("video")) messageType = "video";
+        else if (message.includes("🎵") || message.includes("audio")) messageType = "audio";
+        else if (message.includes("📎") || message.includes("file")) messageType = "file";
+        else if (message.includes("📍") || message.includes("location")) messageType = "location";
+        
+        // Prepare rich notification message
         const notificationMessage = {
-            notification: {
-                title: senderName,
-                body: message
-            },
             data: {
-                chatRoomId: chatRoomId,
+                title: senderName,
+                message: message,
                 senderId: senderId,
-                click_action: 'FLUTTER_NOTIFICATION_CLICK'
+                senderName: senderName,
+                senderAvatar: senderAvatar,
+                chatRoomId: chatRoomId,
+                messageType: messageType,
+                timestamp: new Date().toISOString()
             },
             token: fcmToken
         };
