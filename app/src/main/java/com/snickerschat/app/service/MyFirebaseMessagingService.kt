@@ -3,14 +3,10 @@ package com.snickerschat.app.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
-import android.os.Bundle
 import android.text.TextUtils
-import androidx.core.app.RemoteInput
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.RingtoneManager
@@ -28,12 +24,6 @@ import java.io.IOException
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
-import com.snickerschat.app.data.repository.FirebaseRepository
-import android.widget.Toast
-import kotlinx.coroutines.tasks.await
-
-private const val REPLY_KEY = "key_text_reply"
-private const val REPLY_ACTION = "com.snickerschat.REPLY_ACTION"
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -102,27 +92,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Yanıtla aksiyonu için RemoteInput
-        val remoteInput = RemoteInput.Builder(REPLY_KEY)
-            .setLabel("Yanıtla")
-            .build()
-        val replyIntent = Intent(this, NotificationReplyReceiver::class.java).apply {
-            action = REPLY_ACTION
-            putExtra("chatRoomId", chatRoomId)
-            putExtra("senderId", senderId)
-        }
-        val replyPendingIntent = PendingIntent.getBroadcast(
-            this,
-            2,
-            replyIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val replyAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_launcher_foreground,
-            "Yanıtla",
-            replyPendingIntent
-        ).addRemoteInput(remoteInput).build()
-
         // Build notification with rich content
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -137,7 +106,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setVibrate(longArrayOf(0, 250, 250, 250))
             .setLights(0xFF2196F3.toInt(), 3000, 3000)
             .setStyle(createMessageStyle(senderName, message, messageType))
-            .addAction(replyAction)
 
         // Add sender avatar if available
         senderAvatar?.let { avatarUrl ->
@@ -252,46 +220,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
             } catch (e: Exception) {
                 println("Error saving FCM token: ${e.message}")
-            }
-        }
-    }
-}
-
-// Bildirimden gelen yanıtı yakalayan BroadcastReceiver
-class NotificationReplyReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == REPLY_ACTION) {
-            val chatRoomId = intent.getStringExtra("chatRoomId")
-            val senderId = intent.getStringExtra("senderId")
-            val remoteInput = RemoteInput.getResultsFromIntent(intent)
-            val replyText = remoteInput?.getCharSequence(REPLY_KEY)?.toString()
-            if (!replyText.isNullOrEmpty() && !chatRoomId.isNullOrEmpty() && !senderId.isNullOrEmpty()) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val repository = FirebaseRepository()
-                        // chatRoomId'den receiverId'yi bul
-                        val chatRoomDoc = repository.firestore.collection("chat_rooms").document(chatRoomId).get().await()
-                        val participants = chatRoomDoc.get("participants") as? List<*> ?: emptyList<String>()
-                        val receiverId = participants.firstOrNull { it != senderId } as? String
-                        if (receiverId == null) {
-                            CoroutineScope(Dispatchers.Main).launch {
-                                Toast.makeText(context, "Yanıt gönderilemedi: Alıcı bulunamadı", Toast.LENGTH_SHORT).show()
-                            }
-                            return@launch
-                        }
-                        val result = repository.sendMessage(
-                            receiverId = receiverId,
-                            content = replyText
-                        )
-                        CoroutineScope(Dispatchers.Main).launch {
-                            Toast.makeText(context, if (result.isSuccess) "Yanıt gönderildi" else "Yanıt gönderilemedi", Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            Toast.makeText(context, "Yanıt gönderilemedi: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
             }
         }
     }
