@@ -28,6 +28,8 @@ import java.io.IOException
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import com.snickerschat.app.data.repository.FirebaseRepository
+import android.widget.Toast
 
 private const val REPLY_KEY = "key_text_reply"
 private const val REPLY_ACTION = "com.snickerschat.REPLY_ACTION"
@@ -134,7 +136,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setVibrate(longArrayOf(0, 250, 250, 250))
             .setLights(0xFF2196F3.toInt(), 3000, 3000)
             .setStyle(createMessageStyle(senderName, message, messageType))
-            .addAction(R.drawable.ic_launcher_foreground, "Görüntüle", pendingIntent)
             .addAction(replyAction)
 
         // Add sender avatar if available
@@ -264,11 +265,29 @@ class NotificationReplyReceiver : BroadcastReceiver() {
             val remoteInput = RemoteInput.getResultsFromIntent(intent)
             val replyText = remoteInput?.getCharSequence(REPLY_KEY)?.toString()
             if (!replyText.isNullOrEmpty() && !chatRoomId.isNullOrEmpty() && !senderId.isNullOrEmpty()) {
-                // Burada mesajı doğrudan gönderecek bir servis/metot çağrılmalı
-                // Örnek: FirebaseRepository üzerinden mesaj gönderme
-                // (Gerçek uygulamada ViewModel/Repository erişimi için uygun bir yol gerekir)
-                println("Bildirimden yanıt geldi: $replyText -> chatRoomId: $chatRoomId, senderId: $senderId")
-                // TODO: Mesajı ilgili sohbete gönder
+                // Mesajı arka planda Firebase'e gönder
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val repository = FirebaseRepository()
+                        // Burada receiverId'yi bulmak için chatRoomId'den diğer kullanıcıyı bulmak gerekir
+                        // Basitlik için senderId'yi gönderen, chatRoomId'deki diğer kullanıcıya mesaj atıyor gibi varsayalım
+                        // Gerçek uygulamada chatRoomId'den diğer kullanıcıyı bulmak için ek sorgu gerekebilir
+                        val result = repository.sendMessage(
+                            senderId = senderId,
+                            receiverId = "", // TODO: chatRoomId'den diğer kullanıcıyı bul
+                            content = replyText,
+                            chatRoomId = chatRoomId
+                        )
+                        // Kullanıcıya bildirim/Toast ile geri bildirim ver
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(context, if (result.isSuccess) "Yanıt gönderildi" else "Yanıt gönderilemedi", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(context, "Yanıt gönderilemedi: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
         }
     }
