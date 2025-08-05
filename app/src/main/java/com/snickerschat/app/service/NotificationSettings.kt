@@ -50,7 +50,9 @@ object NotificationSettings {
                         .build())
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-                setAllowBubbles(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setAllowBubbles(true)
+                }
             }
             
             // Group Messages Channel

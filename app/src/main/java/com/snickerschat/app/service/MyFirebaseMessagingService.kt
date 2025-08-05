@@ -215,7 +215,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-                setAllowBubbles(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setAllowBubbles(true)
+                }
             }
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
