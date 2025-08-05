@@ -11,7 +11,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
-import androidx.core.graphics.drawable.Icon
+import android.app.Notification
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.snickerschat.app.MainActivity
@@ -145,7 +145,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun createMessageStyle(senderName: String, message: String, messageType: String): NotificationCompat.Style {
         return NotificationCompat.MessagingStyle(Person.Builder()
             .setName(senderName)
-            .setIcon(Icon.createWithResource(this, R.drawable.ic_launcher_foreground))
             .build())
             .addMessage(getMessagePreview(message, messageType), System.currentTimeMillis(), 
                 Person.Builder().setName(senderName).build())
