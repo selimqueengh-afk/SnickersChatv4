@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "message_read": {
+      ".indexOn": ["id"],
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "userStatus": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "typing_status": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "fcm_tokens": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

@@ -77,4 +77,13 @@ class ChatListViewModel(
     private fun getCurrentUserId(): String? {
         return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     }
+    
+    fun getUnreadMessageCount(): Int {
+        // Calculate total unread messages from all chat rooms
+        return _chatListState.value.chatRooms.sumOf { _ ->
+            // TODO: Implement actual unread count from RTDB
+            // For now, return 0
+            0L
+        }.toInt()
+    }
 }

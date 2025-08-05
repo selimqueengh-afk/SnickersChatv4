@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,7 +47,25 @@ fun MainScreen(
             NavigationBar {
                 listOf(Screen.Chats, Screen.Friends, Screen.Settings).forEach { screen ->
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
+                        icon = {
+                            Box {
+                                Icon(screen.icon, contentDescription = screen.title)
+                                // Badge for unread messages (only for Chats)
+                                if (screen == Screen.Chats) {
+                                    val unreadCount = chatListViewModel.getUnreadMessageCount()
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            modifier = Modifier.align(Alignment.TopEnd)
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
                         label = { Text(screen.title) },
                         selected = selectedScreen == screen,
                         onClick = {
@@ -71,7 +90,7 @@ fun MainScreen(
                         if (targetState.route > initialState.route) fullWidth else -fullWidth
                     } + fadeIn(
                         animationSpec = tween(300)
-                    ) with slideOutHorizontally(
+                    ) togetherWith slideOutHorizontally(
                         animationSpec = tween(300, easing = EaseInOut)
                     ) { fullWidth ->
                         if (targetState.route > initialState.route) -fullWidth else fullWidth

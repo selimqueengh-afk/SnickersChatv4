@@ -4,18 +4,43 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.messaging.FirebaseMessaging
 import com.snickerschat.app.data.model.*
+import com.snickerschat.app.config.CloudinaryConfig
+import com.snickerschat.app.data.api.ApiClient
+import com.snickerschat.app.data.api.NotificationRequest
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import java.util.*
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val rtdb = FirebaseDatabase.getInstance()
+    
+    // Optimized coroutine scope for background operations
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     // Collections
     private val usersCollection = firestore.collection("users")
@@ -24,15 +49,46 @@ class FirebaseRepository {
     private val friendRequestsCollection = firestore.collection("requests")
     
     // RTDB References for real-time features
-    private val onlineStatusRef = rtdb.getReference("online_status")
+    private val userStatusRef = rtdb.getReference("userStatus")
     private val typingStatusRef = rtdb.getReference("typing_status")
     private val messageReadRef = rtdb.getReference("message_read")
+    private val fcmTokensRef = rtdb.getReference("fcm_tokens")
     
     // Authentication
     suspend fun signInAnonymously(): Result<String> {
         return try {
             val result = auth.signInAnonymously().await()
-            Result.success(result.user?.uid ?: "")
+            val userId = result.user?.uid ?: throw Exception("Failed to create anonymous user")
+            
+            // Create user document in Firestore for anonymous user
+            val user = User(
+                id = userId,
+                username = "Anonim_${userId.take(8)}",
+                email = "anonim@snickers.chat",
+                isOnline = true,
+                lastSeen = com.google.firebase.Timestamp.now()
+            )
+            usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for anonymous user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect for anonymous user
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - Anonymous user status initialized in RTDB")
+            Result.success(userId)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -53,6 +109,25 @@ class FirebaseRepository {
                 lastSeen = com.google.firebase.Timestamp.now()
             )
             usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for new user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect for new user
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - User status initialized in RTDB")
             Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -69,8 +144,46 @@ class FirebaseRepository {
             val user = userDoc.toObject(User::class.java)
             
             if (user != null) {
-                // Update online status
-                updateUserOnlineStatus(true)
+                // Initialize user status in RTDB if not exists
+                println("FirebaseRepository: DEBUG - Checking/initializing user status in RTDB for existing user: $userId")
+                userStatusRef.child(userId).get().await().let { snapshot ->
+                    if (!snapshot.exists()) {
+                        println("FirebaseRepository: DEBUG - User status not found in RTDB, initializing...")
+                        userStatusRef.child(userId).setValue(
+                            mapOf(
+                                "isOnline" to true,
+                                "lastSeen" to null
+                            )
+                        ).await()
+                        
+                        // Set up onDisconnect
+                        userStatusRef.child(userId).onDisconnect().setValue(
+                            mapOf(
+                                "isOnline" to false,
+                                "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                            )
+                        )
+                        println("FirebaseRepository: DEBUG - User status initialized in RTDB")
+                    } else {
+                        println("FirebaseRepository: DEBUG - User status already exists in RTDB, updating to online")
+                        // Don't call updateUserOnlineStatus here to avoid conflicts
+                        userStatusRef.child(userId).updateChildren(
+                            mapOf(
+                                "isOnline" to true,
+                                "lastSeen" to null
+                            )
+                        ).await()
+                        
+                        // Set up onDisconnect
+                        userStatusRef.child(userId).onDisconnect().setValue(
+                            mapOf(
+                                "isOnline" to false,
+                                "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                            )
+                        )
+                        println("FirebaseRepository: DEBUG - User status updated to online in RTDB")
+                    }
+                }
                 Result.success(user)
             } else {
                 Result.failure(Exception("User data not found"))
@@ -112,6 +225,25 @@ class FirebaseRepository {
                 lastSeen = com.google.firebase.Timestamp.now()
             )
             usersCollection.document(userId).set(user).await()
+            
+            // Initialize user status in RTDB
+            println("FirebaseRepository: DEBUG - Initializing user status in RTDB for created user: $userId")
+            userStatusRef.child(userId).setValue(
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            ).await()
+            
+            // Set up onDisconnect
+            userStatusRef.child(userId).onDisconnect().setValue(
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            )
+            
+            println("FirebaseRepository: DEBUG - User status initialized in RTDB")
             Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -173,14 +305,23 @@ class FirebaseRepository {
     // Friend requests
     suspend fun sendFriendRequest(receiverId: String): Result<Unit> {
         return try {
+            println("DEBUG: Starting sendFriendRequest...")
+            println("DEBUG: receiverId: $receiverId")
+            
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("DEBUG: senderId: $senderId")
             val request = FriendRequest(
                 senderId = senderId,
-                receiverId = receiverId
+                receiverId = receiverId,
+                status = RequestStatus.PENDING,
+                timestamp = com.google.firebase.Timestamp.now()
             )
             friendRequestsCollection.add(request).await()
+            println("DEBUG: Friend request sent successfully")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("DEBUG: Error sending friend request: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -203,7 +344,7 @@ class FirebaseRepository {
     
     suspend fun acceptFriendRequest(requestId: String): Result<Unit> {
         return try {
-            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            // Removed unused currentUserId variable to fix warning
             
             // Get request details first
             val request = friendRequestsCollection.document(requestId).get().await()
@@ -330,7 +471,15 @@ class FirebaseRepository {
     
     suspend fun sendMessage(receiverId: String, content: String): Result<Message> {
         return try {
+            println("DEBUG: Starting sendMessage...")
+            println("DEBUG: receiverId: $receiverId")
+            println("DEBUG: content: $content")
+            
             val senderId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            println("DEBUG: senderId: $senderId")
+            val messageId = messagesCollection.document().id // Generate ID
+            val now = System.currentTimeMillis()
+            
             println("FirebaseRepository: Sending message from $senderId to $receiverId")
             
             // Find or create chat room
@@ -344,7 +493,7 @@ class FirebaseRepository {
                     chatRoom?.participants?.contains(receiverId) == true
                 }
             
-            println("FirebaseRepository: Found ${chatRoomQuery.size} existing chat rooms")
+            println("FirebaseRepository: Found "+chatRoomQuery.size+" existing chat rooms")
             
             val chatRoomId = if (chatRoomQuery.isNotEmpty()) {
                 chatRoomQuery.first().id
@@ -357,18 +506,34 @@ class FirebaseRepository {
             
             println("FirebaseRepository: Using chat room ID: $chatRoomId")
             
-            // Create message
+            // Create message in RTDB
+            val messageData = mapOf(
+                "id" to messageId,
+                "senderId" to senderId,
+                "receiverId" to receiverId,
+                "content" to content,
+                "timestamp" to now,
+                "isRead" to false,
+                "chatRoomId" to chatRoomId
+            )
+            
+            // Save to RTDB for instant real-time sync
+            messageReadRef.child(chatRoomId).child(messageId).setValue(messageData).await()
+            
+            // Also save to Firestore for persistence
             val message = Message(
+                id = messageId,
                 senderId = senderId,
                 receiverId = receiverId,
                 content = content,
+                timestamp = com.google.firebase.Timestamp.now(),
+                isRead = false,
                 chatRoomId = chatRoomId
             )
             
-            val messageRef = messagesCollection.add(message).await()
-            val savedMessage = message.copy(id = messageRef.id)
+            messagesCollection.document(messageId).set(message).await()
             
-            println("FirebaseRepository: Message saved with ID: ${savedMessage.id}")
+            println("FirebaseRepository: Message saved with ID: ${message.id}")
             
             // Update chat room
             chatRoomsCollection.document(chatRoomId).update(
@@ -380,9 +545,17 @@ class FirebaseRepository {
             ).await()
             
             println("FirebaseRepository: Chat room updated successfully")
-            Result.success(savedMessage)
+            println("FirebaseRepository: Message saved to RTDB and Firestore")
+            
+            // Send push notification via backend in background
+            backgroundScope.launch {
+                sendPushNotification(senderId, receiverId, content, chatRoomId)
+            }
+
+            Result.success(message)
         } catch (e: Exception) {
             println("FirebaseRepository: Error sending message: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -402,44 +575,186 @@ class FirebaseRepository {
         }
     }
     
+    suspend fun deleteMessage(messageId: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            
+            println("FirebaseRepository: Deleting message: $messageId")
+            
+            // Delete from Firestore - find message by ID
+            val query = messagesCollection.whereEqualTo("id", messageId)
+            val querySnapshot = query.get().await()
+            
+            for (document in querySnapshot.documents) {
+                document.reference.delete().await()
+                println("FirebaseRepository: Deleted message from Firestore: ${document.id}")
+            }
+            
+            // Delete from RTDB - we need to find the chatRoomId first
+            // Get all chat rooms for current user
+            val chatRoomsQuery = chatRoomsCollection.whereArrayContains("participants", currentUserId)
+            val chatRoomsSnapshot = chatRoomsQuery.get().await()
+            
+            for (chatRoomDoc in chatRoomsSnapshot.documents) {
+                val chatRoomId = chatRoomDoc.id
+                println("FirebaseRepository: Checking chat room: $chatRoomId")
+                
+                // Check if message exists in this chat room
+                val messageSnapshot = messageReadRef.child(chatRoomId).child(messageId).get().await()
+                if (messageSnapshot.exists()) {
+                    println("FirebaseRepository: Found message in RTDB chat room: $chatRoomId")
+                    messageReadRef.child(chatRoomId).child(messageId).removeValue().await()
+                    println("FirebaseRepository: Deleted message from RTDB: $messageId in chat: $chatRoomId")
+                    break // Found and deleted, no need to check other chat rooms
+                }
+            }
+            
+            println("FirebaseRepository: Message deleted successfully from both Firestore and RTDB")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error deleting message: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun addReactionToMessage(messageId: String, emoji: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            
+            println("FirebaseRepository: Adding reaction: $emoji to message: $messageId")
+            
+            // Find message in Firestore
+            val query = messagesCollection.whereEqualTo("id", messageId)
+            val querySnapshot = query.get().await()
+            
+            for (document in querySnapshot.documents) {
+                @Suppress("UNCHECKED_CAST")
+                val currentReactions = document.get("reactions") as? List<String> ?: emptyList()
+                val updatedReactions = if (currentReactions.contains(emoji)) {
+                    currentReactions - emoji // Remove if already exists
+                } else {
+                    currentReactions + emoji // Add if doesn't exist
+                }
+                
+                document.reference.update("reactions", updatedReactions).await()
+                println("FirebaseRepository: Updated reactions in Firestore: $updatedReactions")
+            }
+            
+            // Update in RTDB - we need to find the chatRoomId first
+            val chatRoomsQuery = chatRoomsCollection.whereArrayContains("participants", currentUserId)
+            val chatRoomsSnapshot = chatRoomsQuery.get().await()
+            
+            for (chatRoomDoc in chatRoomsSnapshot.documents) {
+                val chatRoomId = chatRoomDoc.id
+                println("FirebaseRepository: Checking chat room for reaction: $chatRoomId")
+                
+                // Check if message exists in this chat room
+                val messageSnapshot = messageReadRef.child(chatRoomId).child(messageId).get().await()
+                if (messageSnapshot.exists()) {
+                    println("FirebaseRepository: Found message in RTDB chat room: $chatRoomId")
+                    
+                    val currentReactions = messageSnapshot.child("reactions").getValue(object : com.google.firebase.database.GenericTypeIndicator<List<String>>() {}) ?: emptyList()
+                    val updatedReactions = if (currentReactions.contains(emoji)) {
+                        currentReactions - emoji
+                    } else {
+                        currentReactions + emoji
+                    }
+                    
+                    messageReadRef.child(chatRoomId).child(messageId).child("reactions").ref.setValue(updatedReactions).await()
+                    println("FirebaseRepository: Updated reactions in RTDB: $updatedReactions")
+                    break // Found and updated, no need to check other chat rooms
+                }
+            }
+            
+            println("FirebaseRepository: Reaction added successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error adding reaction: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun uploadMedia(file: File, mediaType: MediaType): Result<String> {
+        return try {
+            println("FirebaseRepository: Uploading media: ${file.name}, type: $mediaType")
+            
+            val resourceType = when(mediaType) {
+                MediaType.IMAGE -> "image"
+                MediaType.AUDIO -> "video" // Cloudinary uses video for audio
+                MediaType.VIDEO -> "video"
+                MediaType.FILE -> "raw"
+            }
+            
+            // Cloudinary upload (gerçek upload)
+            return suspendCancellableCoroutine { cont ->
+                MediaManager.get().upload(file.absolutePath)
+                    .option("resource_type", resourceType)
+                    .option("public_id", "snickers_chat/${System.currentTimeMillis()}_${file.nameWithoutExtension}")
+                    .option("overwrite", true)
+                    .callback(object : UploadCallback {
+                        override fun onStart(requestId: String?) {
+                            println("Cloudinary upload started: $requestId")
+                        }
+                        override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                        override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                            val url = resultData?.get("secure_url") as? String
+                                ?: resultData?.get("url") as? String
+                            println("Cloudinary upload success: $url")
+                            if (url != null) {
+                                cont.resume(Result.success(url), null)
+                            } else {
+                                cont.resume(Result.failure(Exception("Cloudinary: URL null")), null)
+                            }
+                        }
+                        override fun onError(requestId: String?, error: ErrorInfo?) {
+                            println("Cloudinary upload error: ${error?.description}")
+                            cont.resume(Result.failure(Exception(error?.description)), null)
+                        }
+                        override fun onReschedule(requestId: String?, error: ErrorInfo?) {
+                            println("Cloudinary upload rescheduled: ${error?.description}")
+                            cont.resume(Result.failure(Exception(error?.description)), null)
+                        }
+                    })
+                    .dispatch()
+            }
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error uploading media: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
     suspend fun markAllMessagesAsRead(chatRoomId: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = com.google.firebase.Timestamp.now()
             val nowMillis = System.currentTimeMillis()
             
             println("FirebaseRepository: Marking messages as read for user: $currentUserId in chat: $chatRoomId")
             
-            val messagesSnapshot = messagesCollection
-                .whereEqualTo("chatRoomId", chatRoomId)
-                .whereEqualTo("receiverId", currentUserId)
-                .whereEqualTo("isRead", false)
-                .get()
-                .await()
+            // Get all messages from RTDB where current user is receiver
+            val messagesSnapshot = messageReadRef.child(chatRoomId).get().await()
             
-            println("FirebaseRepository: Found ${messagesSnapshot.size()} unread messages")
+            println("FirebaseRepository: Found ${messagesSnapshot.childrenCount} messages in RTDB")
             
-            for (messageDoc in messagesSnapshot.documents) {
-                val messageId = messageDoc.id
+            for (child in messagesSnapshot.children) {
+                val messageId = child.key
+                val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
                 
-                // Update in Firestore
-                messageDoc.reference.update(
-                    mapOf(
-                        "isRead" to true,
-                        "readAt" to now
-                    )
-                ).await()
-                
-                // Update in RTDB for real-time
-                messageReadRef.child(chatRoomId).child(messageId).setValue(
-                    mapOf(
-                        "readBy" to currentUserId,
-                        "readAt" to nowMillis,
-                        "timestamp" to nowMillis
-                    )
-                ).await()
-                
-                println("FirebaseRepository: Marked message $messageId as read in Firestore and RTDB")
+                if (messageData != null && messageId != null) {
+                    val receiverId = messageData["receiverId"] as? String
+                    val isRead = messageData["isRead"] as? Boolean ?: false
+                    
+                    // Only mark as read if current user is the receiver and message is not read
+                    if (receiverId == currentUserId && !isRead) {
+                        println("FirebaseRepository: Marking message $messageId as read")
+                        
+                        // Update in RTDB
+                        messageReadRef.child(chatRoomId).child(messageId).child("isRead").setValue(true).await()
+                        messageReadRef.child(chatRoomId).child(messageId).child("readAt").setValue(nowMillis).await()
+                        messageReadRef.child(chatRoomId).child(messageId).child("readBy").setValue(currentUserId).await()
+                        
+                        println("FirebaseRepository: Marked message $messageId as read in RTDB")
+                    }
+                }
             }
             
             Result.success(Unit)
@@ -449,68 +764,177 @@ class FirebaseRepository {
         }
     }
     
-    suspend fun updateUserOnlineStatus(isOnline: Boolean): Result<Unit> {
+    // FCM Token Management
+    suspend fun getFCMToken(): Result<String> {
         return try {
-            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val now = System.currentTimeMillis()
+            val token = FirebaseMessaging.getInstance().token.await()
+            println("FirebaseRepository: FCM token obtained: $token")
+            Result.success(token)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error getting FCM token: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun saveFCMToken(userId: String, token: String): Result<Unit> {
+        return try {
+            // Save to RTDB for real-time access
+            fcmTokensRef.child(userId).setValue(token).await()
             
-            println("FirebaseRepository: Updating online status for user $currentUserId: $isOnline")
-            
-            // Update in RTDB for real-time
-            if (isOnline) {
-                onlineStatusRef.child(currentUserId).setValue(
-                    mapOf(
-                        "isOnline" to true,
-                        "lastSeen" to null,
-                        "timestamp" to now
-                    )
-                ).await()
-            } else {
-                onlineStatusRef.child(currentUserId).setValue(
-                    mapOf(
-                        "isOnline" to false,
-                        "lastSeen" to now,
-                        "timestamp" to now
-                    )
-                ).await()
-            }
-            
-            // Also update in Firestore for persistence
-            usersCollection.document(currentUserId).update(
+            // Also save to Firestore for backend access
+            usersCollection.document(userId).update(
                 mapOf(
-                    "isOnline" to isOnline,
-                    "lastSeen" to if (isOnline) null else com.google.firebase.Timestamp.now()
+                    "fcmToken" to token,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
                 )
             ).await()
             
-            println("FirebaseRepository: Online status updated successfully in RTDB and Firestore")
+            println("FirebaseRepository: FCM token saved for user: $userId (RTDB + Firestore)")
             Result.success(Unit)
         } catch (e: Exception) {
-            println("FirebaseRepository: Error updating online status: ${e.message}")
+            println("FirebaseRepository: Error saving FCM token: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getFCMTokenForUser(userId: String): Result<String?> {
+        return try {
+            val snapshot = fcmTokensRef.child(userId).get().await()
+            val token = snapshot.getValue(String::class.java)
+            println("FirebaseRepository: FCM token for user $userId: $token")
+            Result.success(token)
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error getting FCM token for user: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun updateUserOnlineStatus(isOnline: Boolean): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid
+            if (currentUserId.isNullOrEmpty()) {
+                println("FirebaseRepository: ERROR - User ID is null or empty!")
+                throw Exception("User not authenticated or ID is empty")
+            }
+            
+            println("FirebaseRepository: DEBUG - User ID: $currentUserId")
+            println("FirebaseRepository: DEBUG - Updating online status: $isOnline")
+            println("FirebaseRepository: DEBUG - RTDB path: ${userStatusRef.child(currentUserId).toString()}")
+            
+            // Update in RTDB only - userStatus/{userId} structure
+            val statusData = if (isOnline) {
+                mapOf(
+                    "isOnline" to true,
+                    "lastSeen" to null
+                )
+            } else {
+                mapOf(
+                    "isOnline" to false,
+                    "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+            }
+            
+            println("FirebaseRepository: DEBUG - Status data to write: $statusData")
+            
+            // Update in RTDB using updateChildren to avoid overwriting onDisconnect
+            if (isOnline) {
+                userStatusRef.child(currentUserId).updateChildren(
+                    mapOf(
+                        "isOnline" to true,
+                        "lastSeen" to null
+                    )
+                ).await()
+                println("FirebaseRepository: DEBUG - Successfully updated to online in RTDB")
+                
+                // Set up onDisconnect when going online
+                userStatusRef.child(currentUserId).onDisconnect().setValue(
+                    mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                    )
+                )
+                println("FirebaseRepository: DEBUG - onDisconnect set up for user")
+            } else {
+                // For offline, use setValue to ensure complete update
+                userStatusRef.child(currentUserId).setValue(
+                    mapOf(
+                        "isOnline" to false,
+                        "lastSeen" to com.google.firebase.database.ServerValue.TIMESTAMP
+                    )
+                ).await()
+                println("FirebaseRepository: DEBUG - Successfully updated to offline in RTDB")
+                
+                // Remove onDisconnect when going offline manually
+                userStatusRef.child(currentUserId).onDisconnect().removeValue()
+                println("FirebaseRepository: DEBUG - onDisconnect removed for user")
+            }
+            
+            println("FirebaseRepository: Online status updated successfully in RTDB")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("FirebaseRepository: ERROR updating online status: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
     
     // Real-time listeners
     fun getMessagesFlow(chatRoomId: String): Flow<List<Message>> = callbackFlow {
-        val listener = messagesCollection
-            .whereEqualTo("chatRoomId", chatRoomId)
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    // Handle error
-                    return@addSnapshotListener
+        println("FirebaseRepository: Starting messages listener for chat: $chatRoomId")
+        val listener = messageReadRef.child(chatRoomId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    println("FirebaseRepository: Messages data changed for chat $chatRoomId")
+                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    
+                    val messages = mutableListOf<Message>()
+                    for (child in snapshot.children) {
+                        val messageData = child.getValue(object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {})
+                        if (messageData != null) {
+                            val id = messageData["id"] as? String
+                            val senderId = messageData["senderId"] as? String
+                            val receiverId = messageData["receiverId"] as? String
+                            val content = messageData["content"] as? String
+                            val messageChatRoomId = messageData["chatRoomId"] as? String
+                            val timestamp = messageData["timestamp"] as? Long
+                            @Suppress("UNCHECKED_CAST")
+                            val reactions = messageData["reactions"] as? List<String> ?: emptyList()
+                            
+                            // Only create message if all required fields are present
+                            if (id != null && senderId != null && receiverId != null && content != null && messageChatRoomId != null && timestamp != null) {
+                                val message = Message(
+                                    id = id,
+                                    senderId = senderId,
+                                    receiverId = receiverId,
+                                    content = content,
+                                    timestamp = com.google.firebase.Timestamp(timestamp / 1000, ((timestamp % 1000) * 1000000).toInt()),
+                                    isRead = messageData["isRead"] as? Boolean ?: false,
+                                    chatRoomId = messageChatRoomId,
+                                    reactions = reactions
+                                )
+                                messages.add(message)
+                            }
+                        }
+                    }
+                    
+                    // Sort messages by timestamp (oldest first)
+                    messages.sortBy { it.timestamp.seconds }
+                    
+                    println("FirebaseRepository: Found ${messages.size} messages in RTDB")
+                    trySend(messages)
                 }
                 
-                val messages = snapshot?.documents?.mapNotNull { 
-                    it.toObject(Message::class.java) 
-                } ?: emptyList()
-                
-                trySend(messages)
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    println("FirebaseRepository: Messages listener cancelled for chat $chatRoomId: ${error.message}")
+                    trySend(emptyList())
+                }
             }
+        )
         
-        // Clean up listener when flow is cancelled
-        awaitClose { listener.remove() }
+        awaitClose { 
+            println("FirebaseRepository: Removing messages listener for chat: $chatRoomId")
+            messageReadRef.child(chatRoomId).removeEventListener(listener) 
+        }
     }
     
     fun getChatRoomsFlow(): Flow<List<ChatRoom>> = callbackFlow {
@@ -597,5 +1021,221 @@ class FirebaseRepository {
         )
         
         awaitClose { typingStatusRef.child(chatRoomId).removeEventListener(listener) }
+    }
+    
+    fun getOnlineStatusFlow(userId: String): Flow<Map<String, Any>> = callbackFlow {
+        if (userId.isNullOrEmpty()) {
+            println("FirebaseRepository: ERROR - Cannot start listener for null/empty userId")
+            return@callbackFlow
+        }
+        
+        println("FirebaseRepository: DEBUG - Starting online status listener for user: $userId")
+        println("FirebaseRepository: DEBUG - RTDB path: ${userStatusRef.child(userId).toString()}")
+        
+        val listener = userStatusRef.child(userId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    println("FirebaseRepository: DEBUG - onDataChange triggered for user $userId")
+                    println("FirebaseRepository: DEBUG - Snapshot exists: ${snapshot.exists()}")
+                    println("FirebaseRepository: DEBUG - Snapshot value: ${snapshot.value}")
+                    
+                    if (snapshot.exists()) {
+                        val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                        val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java)
+                        
+                        println("FirebaseRepository: DEBUG - Raw values from RTDB:")
+                        println("FirebaseRepository: DEBUG - isOnline: ${snapshot.child("isOnline").value}")
+                        println("FirebaseRepository: DEBUG - lastSeen: ${snapshot.child("lastSeen").value}")
+                        println("FirebaseRepository: DEBUG - Parsed isOnline: $isOnline")
+                        println("FirebaseRepository: DEBUG - Parsed lastSeen: $lastSeen")
+                        
+                        val statusData = mutableMapOf<String, Any>()
+                        statusData["isOnline"] = isOnline
+                        statusData["lastSeen"] = lastSeen ?: "null"
+                        
+                        println("FirebaseRepository: DEBUG - Sending status data: $statusData")
+                        trySend(statusData)
+                    } else {
+                        println("FirebaseRepository: DEBUG - No online status data for user $userId, defaulting to offline")
+                        val defaultStatus = mutableMapOf<String, Any>()
+                        defaultStatus["isOnline"] = false
+                        defaultStatus["lastSeen"] = "null"
+                        trySend(defaultStatus)
+                    }
+                }
+                
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    println("FirebaseRepository: ERROR - Online status listener cancelled for user $userId")
+                    println("FirebaseRepository: ERROR - Database error: ${error.message}")
+                    println("FirebaseRepository: ERROR - Error code: ${error.code}")
+                    val errorStatus = mutableMapOf<String, Any>()
+                    errorStatus["isOnline"] = false
+                    errorStatus["lastSeen"] = "null"
+                    trySend(errorStatus)
+                }
+            }
+        )
+        
+        awaitClose { 
+            println("FirebaseRepository: DEBUG - Removing online status listener for user: $userId")
+            userStatusRef.child(userId).removeEventListener(listener) 
+        }
+    }
+    
+    fun getMessageReadStatusFlow(chatRoomId: String): Flow<Map<String, Boolean>> = callbackFlow {
+        println("FirebaseRepository: Starting message read status listener for chat: $chatRoomId")
+        val listener = messageReadRef.child(chatRoomId).addValueEventListener(
+            object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    println("FirebaseRepository: Message read status data changed for chat $chatRoomId")
+                    println("FirebaseRepository: Snapshot exists: ${snapshot.exists()}")
+                    println("FirebaseRepository: Snapshot children count: ${snapshot.childrenCount}")
+                    
+                    val readMessages = mutableMapOf<String, Boolean>()
+                    for (child in snapshot.children) {
+                        val messageId = child.key
+                        val readBy = child.child("readBy").getValue(String::class.java)
+                        println("FirebaseRepository: Message $messageId read by: $readBy")
+                        if (messageId != null && readBy != null) {
+                            readMessages[messageId] = true
+                        }
+                    }
+                    println("FirebaseRepository: Read messages: $readMessages")
+                    trySend(readMessages)
+                }
+                
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    println("FirebaseRepository: Message read status listener cancelled for chat $chatRoomId: ${error.message}")
+                    trySend(emptyMap())
+                }
+            }
+        )
+        
+        awaitClose { 
+            println("FirebaseRepository: Removing message read status listener for chat: $chatRoomId")
+            messageReadRef.child(chatRoomId).removeEventListener(listener) 
+        }
+    }
+
+    private suspend fun sendFCMPushNotification(token: String, title: String, body: String, chatRoomId: String, senderId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                println("FCM: Preparing to send push notification...")
+                println("FCM: Token: ${token.take(20)}...")
+                println("FCM: Title: $title")
+                println("FCM: Body: $body")
+                println("FCM: ChatRoomId: $chatRoomId")
+                println("FCM: SenderId: $senderId")
+                
+                // FCM HTTP v1 API endpoint
+                val FCM_API = "https://fcm.googleapis.com/fcm/send"
+                val SERVER_KEY = "key=BEojipfPOa3zG3WJHEIMzR-XJPUfNVpg3d5a05MIjW4yIE1klzKJtamHZM7qvVUgbs_DoWHz-IgX5ynJhSgOrDw"
+                
+                println("FCM: Using API: $FCM_API")
+                println("FCM: Server key: ${SERVER_KEY.take(20)}...")
+                
+                val client = OkHttpClient()
+                val json = JSONObject().apply {
+                    put("to", token)
+                    put("notification", JSONObject().apply {
+                        put("title", title)
+                        put("body", body)
+                        put("sound", "default")
+                        put("priority", "high")
+                    })
+                    put("data", JSONObject().apply {
+                        put("chatRoomId", chatRoomId)
+                        put("senderId", senderId)
+                        put("click_action", "FLUTTER_NOTIFICATION_CLICK")
+                    })
+                    put("priority", "high")
+                }
+                
+                val jsonString = json.toString()
+                println("FCM: JSON payload: $jsonString")
+                
+                val bodyReq = jsonString.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+                val request = Request.Builder()
+                    .url(FCM_API)
+                    .addHeader("Authorization", SERVER_KEY)
+                    .addHeader("Content-Type", "application/json")
+                    .post(bodyReq)
+                    .build()
+                
+                println("FCM: Sending HTTP request...")
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+                    println("FCM: Response code: ${response.code}")
+                    println("FCM: Response message: ${response.message}")
+                    println("FCM: Response body: $responseBody")
+                    
+                    if (response.isSuccessful) {
+                        println("FCM: Push notification sent successfully!")
+                    } else {
+                        println("FCM: Failed to send push notification: ${response.code} ${response.message}")
+                        println("FCM: Error response: $responseBody")
+                    }
+                }
+            } catch (e: Exception) {
+                println("FCM: Exception in sendFCMPushNotification: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    // Push Notification via Backend
+    private suspend fun sendPushNotification(
+        senderId: String, 
+        receiverId: String, 
+        message: String, 
+        chatRoomId: String
+    ) {
+        try {
+            // --- YENİ: Alıcı çevrimdışı mı kontrol et ---
+            val userStatusSnapshot = userStatusRef.child(receiverId).get().await()
+            val isOnline = userStatusSnapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+            if (isOnline) {
+                println("Bildirim gönderilmiyor: Kullanıcı çevrimiçi!")
+                return
+            }
+            // --- /YENİ ---
+            println("DEBUG: Starting backend push notification...")
+            println("DEBUG: senderId: $senderId")
+            println("DEBUG: receiverId: $receiverId")
+            println("DEBUG: message: $message")
+            println("DEBUG: chatRoomId: $chatRoomId")
+            
+            // Get sender's name
+            val senderDoc = usersCollection.document(senderId).get().await()
+            val senderName = senderDoc.getString("username") ?: "Kullanıcı"
+            println("DEBUG: senderName: $senderName")
+            
+            // Create notification request
+            val request = NotificationRequest(
+                receiverId = receiverId,
+                senderId = senderId,
+                senderName = senderName,
+                message = message,
+                chatRoomId = chatRoomId
+            )
+            println("DEBUG: Notification request created: $request")
+            
+            // Send notification via backend API
+            println("DEBUG: Sending request to backend API...")
+            val response = ApiClient.backendApi.sendNotification(request)
+            println("DEBUG: Backend API response code: ${response.code()}")
+            println("DEBUG: Backend API response body: ${response.body()}")
+            
+            if (response.isSuccessful) {
+                println("FirebaseRepository: Push notification sent successfully via backend")
+            } else {
+                val errorBody = response.errorBody()?.string()
+                println("FirebaseRepository: Failed to send push notification via backend: ${response.code()}")
+                println("FirebaseRepository: Error response: $errorBody")
+            }
+        } catch (e: Exception) {
+            println("FirebaseRepository: Error sending push notification via backend: ${e.message}")
+            e.printStackTrace()
+        }
     }
 }
